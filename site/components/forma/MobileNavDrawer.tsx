@@ -80,8 +80,14 @@ export function MobileNavDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={ar ? 'right' : 'left'}
-        className="mobile-nav-sheet w-[85vw] max-w-sm p-6 flex flex-col justify-between"
+        className="mobile-nav-sheet w-[88vw] max-w-sm p-5 sm:p-6 flex flex-col justify-between overflow-y-auto overscroll-contain max-h-[100dvh]"
         dir={ar ? 'rtl' : 'ltr'}
+        style={{
+          paddingTop: 'max(1.25rem, calc(0.75rem + env(safe-area-inset-top, 0px)))',
+          paddingBottom: 'max(1.25rem, calc(0.75rem + env(safe-area-inset-bottom, 0px)))',
+          paddingInlineStart: 'max(1.25rem, calc(0.75rem + env(safe-area-inset-inline-start, 0px)))',
+          paddingInlineEnd: 'max(1.25rem, calc(0.75rem + env(safe-area-inset-inline-end, 0px)))',
+        }}
       >
         <div>
           {/* Header Brand */}
@@ -89,11 +95,11 @@ export function MobileNavDrawer({
             <Link
               href="/"
               onClick={() => onOpenChange(false)}
-              className="brand brand-wordmark flex flex-col items-start"
+              className="brand brand-wordmark flex flex-col items-start min-h-[44px] justify-center"
             >
               <SheetTitle className="brand-logotype text-2xl font-black tracking-tighter">
                 {ar ? 'فورما' : 'FORMA'}
-                <sup className="brand-sup text-xs text-primary ml-0.5 rtl:mr-0.5">3D</sup>
+                <sup className="brand-sup text-xs text-primary ms-1">3D</sup>
               </SheetTitle>
               <SheetDescription className="brand-origin text-[9px] font-semibold tracking-widest text-muted-foreground uppercase mt-0.5">
                 {ar ? 'الجبيل · استوديو ثلاثي الأبعاد' : 'JUBAIL · 3D STUDIO'}
@@ -102,7 +108,7 @@ export function MobileNavDrawer({
           </div>
 
           {/* Navigation Links */}
-          <nav className="mt-6 space-y-1.5" aria-label={t('Mobile navigation', 'تنقل الجوال')}>
+          <nav className="mt-5 space-y-1.5" aria-label={t('Mobile navigation', 'تنقل الجوال')}>
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -110,7 +116,7 @@ export function MobileNavDrawer({
                   key={item.href}
                   href={item.href}
                   onClick={() => onOpenChange(false)}
-                  className={`mobile-nav-item flex items-center gap-3.5 p-3 rounded-md transition-colors ${
+                  className={`mobile-nav-item flex items-center gap-3.5 min-h-[50px] p-3 rounded-md transition-colors ${
                     item.active
                       ? 'bg-primary/10 text-primary font-semibold'
                       : 'hover:bg-muted/50 text-foreground font-medium'
@@ -136,14 +142,14 @@ export function MobileNavDrawer({
           </nav>
 
           {/* Quick Action Buttons (Support & Account) */}
-          <div className="mt-6 pt-5 border-t border-border/40 space-y-2">
+          <div className="mt-5 pt-4 border-t border-border/40 space-y-2">
             <button
               type="button"
               onClick={() => {
                 onOpenChange(false);
                 onOpenSupport();
               }}
-              className="w-full flex items-center justify-between p-3 rounded-md border border-border/60 hover:bg-muted/40 transition-colors text-xs font-semibold text-foreground cursor-pointer"
+              className="w-full min-h-[48px] flex items-center justify-between p-3 rounded-md border border-border/60 hover:bg-muted/40 transition-colors text-xs font-semibold text-foreground cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
                 <HelpCircle size={16} className="text-primary" />
@@ -160,7 +166,7 @@ export function MobileNavDrawer({
                 onOpenChange(false);
                 onOpenAccount();
               }}
-              className="w-full flex items-center justify-between p-3 rounded-md border border-border/60 hover:bg-muted/40 transition-colors text-xs font-semibold text-foreground cursor-pointer"
+              className="w-full min-h-[48px] flex items-center justify-between p-3 rounded-md border border-border/60 hover:bg-muted/40 transition-colors text-xs font-semibold text-foreground cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
                 <User size={16} className="text-primary" />
@@ -174,7 +180,7 @@ export function MobileNavDrawer({
         </div>
 
         {/* Footer controls: Cart, Language Toggle, and Studio Specs */}
-        <div className="pt-5 border-t border-border/40 space-y-3">
+        <div className="pt-4 border-t border-border/40 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -182,11 +188,11 @@ export function MobileNavDrawer({
                 onOpenChange(false);
                 onOpenCart();
               }}
-              className="flex items-center justify-center gap-2 p-2.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
+              className="flex items-center justify-center gap-2 min-h-[46px] p-2.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
             >
-              <ShoppingBag size={15} />
+              <ShoppingBag size={16} />
               <span>{t('Order', 'الطلب')}</span>
-              <span className="bg-primary-foreground/20 px-1.5 py-0.2 rounded text-[11px] font-mono">
+              <span className="bg-primary-foreground/20 px-1.5 py-0.5 rounded text-[11px] font-mono">
                 {cart.length}
               </span>
             </button>
@@ -194,9 +200,9 @@ export function MobileNavDrawer({
             <button
               type="button"
               onClick={onToggleLanguage}
-              className="flex items-center justify-center gap-2 p-2.5 rounded-md border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted transition-colors cursor-pointer"
+              className="flex items-center justify-center gap-2 min-h-[46px] p-2.5 rounded-md border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted transition-colors cursor-pointer"
             >
-              <Globe size={15} />
+              <Globe size={16} />
               <span>{ar ? 'English' : 'العربية'}</span>
             </button>
           </div>

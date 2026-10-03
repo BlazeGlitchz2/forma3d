@@ -2,7 +2,7 @@
 import {useState,useEffect,useCallback,lazy,Suspense,useRef,useMemo} from 'react';
 import {PageLink as Link} from './PageLink';
 import type {Mesh,Texture,Material as ThreeMaterial,BufferGeometry} from 'three';
-import {Check,Plus,Minus,MapPin,Package,Clock,AlertCircle,Loader2,Download} from 'lucide-react';
+import {Check,Plus,Minus,MapPin,Package,Clock,AlertCircle,Loader2,Download,Search} from 'lucide-react';
 import {useMaterialWorld,type WorldScene} from './MaterialWorld';
 import {WorldControls} from './WorldHUD';
 import ObjectArchive from './ObjectArchive';
@@ -125,7 +125,113 @@ export function MakeFlow(shared:Shared){
   </div>}
  </section>;
 }
-export const CatalogFlow=ObjectArchive;
+export function CatalogFlow(shared:Shared){
+ const {ar,products,categories,palette}=shared;
+ const t=(en:string,arabic:string)=>ar?arabic:en;
+ const {setScene}=useMaterialWorld();
+ const [viewMode,setViewMode]=useState<'gallery'|'cinema'>('gallery');
+ const [category,setCategory]=useState('All');
+ const [search,setSearch]=useState('');
+ const [sort,setSort]=useState('curated');
+
+ useEffect(()=>{
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('view')==='cinema')setViewMode('cinema');
+ },[]);
+
+ useEffect(()=>{
+  if(viewMode==='gallery'){
+   setScene({shot:'hidden',tone:'paper'});
+  }
+ },[viewMode,setScene]);
+
+ const categoryLabels:Record<string,string>={
+  'All':'الكل',
+  'Desk setup':'للمكتب',
+  'Room':'للغرفة',
+  'Useful':'عملي',
+  'Gifts':'هدايا',
+  'Miniatures':'مجسمات'
+ };
+
+ if(viewMode==='cinema'){
+  return <div className="catalog-cinema-wrap">
+   <ObjectArchive {...shared} onShowGallery={()=>setViewMode('gallery')}/>
+  </div>;
+ }
+
+ const available=products.filter(p=>p.available).sort((a,b)=>Number(b.featured)-Number(a.featured));
+ const visible=available.filter(p=>(category==='All'||p.category===category)&&`${p.name} ${p.nameAr} ${p.description}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>sort==='low'?a.price-b.price:sort==='high'?b.price-a.price:0);
+
+ return <section className="object-gallery shop-page" aria-label={t('Objects catalog','معرض القطع')}>
+  <div className="object-gallery-heading">
+   <h1>{t('OBJECTS.','القطع.')}</h1>
+   <div>
+    <p>{t('Made to order in Jubail.','تُصنع عند طلبك في الجبيل.')}</p>
+    <span>{t('Every object begins as a digital model and takes physical form layer by layer.','كل قطعة تبدأ كنموذج رقمي وتتجسد طبقة فوق طبقة.')}</span>
+   </div>
+  </div>
+
+  <div className="object-gallery-tools">
+   <Tabs value={category} onValueChange={setCategory}>
+    <TabsList className="category-tabs" role="tablist" aria-label={t('Object categories','فئات القطع')}>
+     {categories.map(c=><TabsTrigger key={c} value={c}>{t(c,categoryLabels[c]??c)}</TabsTrigger>)}
+    </TabsList>
+   </Tabs>
+
+   <div className="shop-tools">
+    <div className="search-field">
+     <Search size={16}/>
+     <input type="search" aria-label={t('Search catalog','ابحث في القطع')} placeholder={t('Search…','بحث…')} value={search} onChange={e=>setSearch(e.target.value)}/>
+    </div>
+    <select className="gallery-sort-select" aria-label={t('Sort catalog','ترتيب القطع')} value={sort} onChange={e=>setSort(e.target.value)}>
+     <option value="curated">{t('Curated','المميزة')}</option>
+     <option value="low">{t('Price: low to high','السعر: الأقل أولاً')}</option>
+     <option value="high">{t('Price: high to low','السعر: الأعلى أولاً')}</option>
+    </select>
+    <button type="button" className="world-action gallery-cinema-btn" onClick={()=>setViewMode('cinema')}>
+     {t('Cinema 3D','سينما 3D')} ↗
+    </button>
+   </div>
+  </div>
+
+  <p className="results-count" role="status">{visible.length} {t('objects ready to print','قطع جاهزة للطباعة')}</p>
+
+  <div className="object-gallery-grid">
+   {visible.map((product,idx)=>{
+    const compIdx=idx%6;
+    const colorHex=palette.find(c=>c.id===product.color)?.hex??'#efeee5';
+    const modelUrl=product.modelId?'/api/uploads/'+product.modelId:undefined;
+    const name=ar?product.nameAr:product.name.replace(/^The /,'');
+    return <Link key={product.id} href={`/make?product=${product.id}&color=${product.color}`} className={`object-gallery-piece composition-${compIdx}`} aria-label={name}>
+     <div className="object-gallery-stage">
+      <Suspense fallback={<div className="object-loading"/>}>
+       <ModelViewport compact kind={product.kind} color={colorHex} modelUrl={modelUrl} ar={ar}/>
+      </Suspense>
+     </div>
+     <div className="object-gallery-meta">
+      <div>
+       <strong>{name}</strong>
+       <span>{t(product.category,categoryLabels[product.category]??product.category)} · {product.dimensions.join(' × ')} MM</span>
+      </div>
+      <span><strong>{product.price}</strong> SAR</span>
+     </div>
+     <span className="gallery-open" aria-hidden="true"><DirectionArrow diagonal/></span>
+    </Link>;
+   })}
+  </div>
+
+  {!visible.length&&<div className="index-empty">
+   <p>{t('No objects matched your search.','لم نجد قطعًا تطابق بحثك.')}</p>
+   <button type="button" className="world-action" onClick={()=>{setSearch('');setCategory('All')}}>{t('Show all objects','عرض جميع القطع')}</button>
+  </div>}
+
+  <div className="gallery-upload-link">
+   <p>{t('Have your own 3D file ready to print?','لديك ملف ثلاثي الأبعاد جاهز للطباعة؟')}</p>
+   <Link href="/lab" className="text-link"><span>{t('Upload to studio lab','ارفع للمختبر')}</span><DirectionArrow diagonal/></Link>
+  </div>
+ </section>;
+}
 export function CartContents(shared:Shared){return <CartJourney {...shared}/>}
 export function CheckoutFlow(shared:Shared){return <CheckoutJourney {...shared}/>}
 type Order={id:string;status:string;payment?:OrderPayment;total:number;fulfillment:string;area:string;items:Item[];history:{status:string;message:string;created:number}[];version:number;customer?:string;phone?:string;notes?:string;quote?:{items:Quote[];delivery:number};created:number};

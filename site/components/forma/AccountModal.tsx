@@ -260,7 +260,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="account-dialog max-w-5xl max-h-[92vh] overflow-y-auto p-6 sm:p-8"
+        className="account-dialog max-w-5xl max-h-[92dvh] overflow-y-auto p-6 sm:p-8"
         dir={ar ? 'rtl' : 'ltr'}
         onScroll={(event) => event.currentTarget.style.setProperty('--studio-scroll-y', `${event.currentTarget.scrollTop}px`)}
       >
@@ -314,7 +314,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
               {currentUser.role === 'admin' && (
                 <a
                   href="/admin"
-                  className="flex-1 px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 text-center"
+                  className="flex-1 px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 text-center min-h-[44px]"
                 >
                   <KeyRound size={14} />
                   <span>{t('Studio Admin Console', 'لوحة تحكم الاستوديو')}</span>
@@ -322,7 +322,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
               )}
               <a
                 href="/track"
-                className="flex-1 px-4 py-2 text-xs font-semibold border border-border hover:bg-muted/50 rounded-sm transition-colors flex items-center justify-center gap-2 text-center"
+                className="flex-1 px-4 py-2.5 text-xs font-semibold border border-border hover:bg-muted/50 rounded-sm transition-colors flex items-center justify-center gap-2 text-center min-h-[44px]"
               >
                 <Package size={14} />
                 <span>{t('Find another order', 'ابحث عن طلب آخر')}</span>
@@ -331,7 +331,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                 type="button"
                 onClick={handleLogout}
                 disabled={busy}
-                className="px-4 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 border border-destructive/30 rounded-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 border border-destructive/30 rounded-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
               >
                 <LogOut size={14} />
                 <span>{t('Sign Out', 'خروج')}</span>
@@ -433,7 +433,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                       placeholder={t('e.g. JBL-1A2B3C', 'مثل JBL-1A2B3C')}
                       value={orderId}
                       onChange={(e) => setOrderId(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background uppercase font-mono tracking-wider"
+                      className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background uppercase font-mono tracking-wider"
                       dir="ltr"
                       required
                     />
@@ -448,14 +448,14 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                       placeholder="050 123 4567"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background font-mono"
+                      className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background font-mono"
                       dir="ltr"
                       required
                     />
                   </div>
                   <button
                     type="submit"
-                    className="w-full mt-1 px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full mt-1 px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer min-h-[44px]"
                   >
                     <Search size={14} />
                     <span>{t('Track Print Now', 'تتبع الطباعة الآن')}</span>
@@ -494,7 +494,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                     value={email}
                     autoComplete="email"
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background"
                     dir="ltr"
                     required
                   />
@@ -510,7 +510,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                     value={password}
                     autoComplete="current-password"
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background"
                     dir="ltr"
                     required
                   /><button type="button" className="studio-password-toggle" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? t('Hide password', 'إخفاء كلمة المرور') : t('Show password', 'إظهار كلمة المرور')} aria-pressed={showPassword}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
@@ -518,7 +518,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[48px]"
                 >
                   {busy ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
                   <span>{busy ? t('Signing In…', 'جارٍ الدخول…') : t('Sign In', 'تسجيل الدخول')}</span>
@@ -551,7 +551,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                     value={name}
                     autoComplete="name"
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background"
                     required
                   />
                 </div>
@@ -566,7 +566,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                     value={email}
                     autoComplete="email"
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background"
                     dir="ltr"
                     required
                   />
@@ -582,7 +582,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                     value={password}
                     autoComplete="new-password"
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background"
                     dir="ltr"
                     minLength={6}
                     required
@@ -600,7 +600,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                       value={regPhone}
                       autoComplete="tel"
                       onChange={(e) => setRegPhone(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background font-mono"
+                      className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background font-mono"
                       dir="ltr"
                     />
                   </div>
@@ -614,14 +614,14 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                       placeholder={t('Jubail', 'الجبيل')}
                       value={area}
                       onChange={(e) => setArea(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background"
+                      className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background"
                     />
                   </div>
                 </div>
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full mt-2 px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full mt-2 px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[48px]"
                 >
                   {busy ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
                   <span>{busy ? t('Creating Account…', 'جارٍ إنشاء الحساب…') : t('Create Account', 'إنشاء الحساب')}</span>

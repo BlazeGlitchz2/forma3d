@@ -22,14 +22,19 @@ function ArchiveShot({product:p,index,ar,palette}:{product:Product;index:number;
   </section>;
 }
 
-export default function ObjectArchive({ar,products,categories,palette}:Shared){
+export default function ObjectArchive({ar,products,categories,palette,onShowGallery}:Shared&{onShowGallery?:()=>void}){
   const t=(en:string,arabic:string)=>ar?arabic:en,{setScene}=useMaterialWorld();
   const [index,setIndex]=useState(false),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[sort,setSort]=useState('curated');
   const available=products.filter(p=>p.available).sort((a,b)=>Number(b.featured)-Number(a.featured));
   const visible=available.filter(p=>(category==='All'||p.category===category)&&`${p.name} ${p.nameAr} ${p.description}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>sort==='low'?a.price-b.price:sort==='high'?b.price-a.price:0);
   useEffect(()=>{if(index)setScene({shot:'hidden',tone:'paper'});window.scrollTo({top:0,behavior:'instant'})},[index,setScene]);
   return <div className={`world-archive ${index?'archive-index-active':''}`}>
-    <div className="archive-switch hud" data-hud><button type="button" aria-pressed={!index} onClick={()=>setIndex(false)}>{t('World','العالم')}</button><span>/</span><button type="button" aria-pressed={index} onClick={()=>setIndex(true)}>{t('Index','الفهرس')} <small>{available.length}</small></button></div>
+    <div className="archive-switch hud" data-hud>
+      {onShowGallery&&<><button type="button" onClick={onShowGallery}>{t('Gallery','المعرض')}</button><span>/</span></>}
+      <button type="button" aria-pressed={!index} onClick={()=>setIndex(false)}>{t('World','العالم')}</button>
+      <span>/</span>
+      <button type="button" aria-pressed={index} onClick={()=>setIndex(true)}>{t('Index','الفهرس')} <small>{available.length}</small></button>
+    </div>
     {!index?available.map((p,i)=><ArchiveShot key={p.id} product={p} index={i} ar={ar} palette={palette}/>):<section className="world-index hud">
       <header><span className="technical-label">{t('OBJECT ARCHIVE','أرشيف القطع')}</span><h1>{t('Find your form.','اختر شكلك.')}</h1></header>
       <div className="index-tools"><label className="index-search"><Search size={17}/><input type="search" aria-label={t('Search objects','ابحث عن القطع')} placeholder={t('Search objects','ابحث عن القطع')} value={search} onChange={e=>setSearch(e.target.value)}/></label><label><span>{t('Category','الفئة')}</span><select aria-label={t('Category','الفئة')} value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option key={c} value={c}>{t(c,({'All':'الكل','Desk setup':'للمكتب','Room':'للغرفة','Useful':'عملي','Gifts':'هدايا','Miniatures':'مجسمات'} as Record<string,string>)[c]??c)}</option>)}</select></label><label><span>{t('Order by','الترتيب')}</span><select aria-label={t('Sort objects','ترتيب القطع')} value={sort} onChange={e=>setSort(e.target.value)}><option value="curated">{t('Studio selection','اختيارات الاستوديو')}</option><option value="low">{t('Price: low to high','السعر: الأقل أولاً')}</option><option value="high">{t('Price: high to low','السعر: الأعلى أولاً')}</option></select></label></div>

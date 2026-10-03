@@ -91,7 +91,7 @@ export function SiteHeader({
               onClick={onOpenSupport}
               aria-label={t('Support and contact', 'المساعدة والتواصل')}
             >
-              <HelpCircle size={15} />
+              <HelpCircle size={16} />
               <span className="action-label">{t('Support', 'مساعدة')}</span>
             </button>
           </TooltipTrigger>
@@ -109,7 +109,7 @@ export function SiteHeader({
               onClick={onOpenAccount}
               aria-label={t('Account and sign in', 'الحساب وتسجيل الدخول')}
             >
-              <User size={15} />
+              <User size={16} />
               <span className="action-label">{t('Account', 'دخول')}</span>
             </button>
           </TooltipTrigger>
@@ -147,7 +147,7 @@ export function SiteHeader({
                 `طلبك، ${cart.length} قطعة`
               )}
             >
-              <ShoppingBag size={14} className="order-icon" />
+              <ShoppingBag size={15} className="order-icon" />
               <span className="order-text">{t('Order', 'الطلب')}</span>
               <span className="order-counter" aria-hidden="true">
                 [{String(cart.length).padStart(2, '0')}]
@@ -165,8 +165,9 @@ export function SiteHeader({
           className="mobile-menu-trigger"
           onClick={onOpenMobileMenu}
           aria-label={t('Open navigation menu', 'فتح قائمة التنقل')}
+          aria-haspopup="dialog"
         >
-          <Menu size={20} />
+          <Menu size={22} />
         </button>
       </div>
     </header>

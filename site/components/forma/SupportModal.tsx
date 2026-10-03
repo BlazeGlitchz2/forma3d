@@ -254,7 +254,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         ref={dialogScrollRef}
-        className="support-dialog max-w-4xl max-h-[94vh] overflow-y-auto p-5 sm:p-8"
+        className="support-dialog max-w-4xl max-h-[92dvh] overflow-y-auto p-5 sm:p-8"
         dir={ar ? 'rtl' : 'ltr'}
         onScroll={(event) => event.currentTarget.style.setProperty('--studio-scroll-y', `${event.currentTarget.scrollTop}px`)}
       >
@@ -347,7 +347,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                     type="button"
                     onClick={() => sendChatMessage(suggestion)}
                     disabled={chatBusy}
-                    className="text-[11px] px-2.5 py-1 rounded-full border border-border/70 bg-background/80 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer disabled:opacity-50"
+                    className="text-xs px-3 py-1.5 min-h-[34px] rounded-full border border-border/70 bg-background/80 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer disabled:opacity-50 flex items-center"
                   >
                     {suggestion}
                   </button>
@@ -372,15 +372,15 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                   'Ask about materials, files, pricing, or your order…',
                   'اسأل عن الخامات أو الملفات أو الأسعار أو طلبك…'
                 )}
-                className="flex-1 px-3 py-2 text-xs border border-border rounded-md bg-background focus:outline-hidden focus:ring-1 focus:ring-primary"
+                className="flex-1 px-3 py-2 text-base sm:text-xs min-h-[48px] border border-border rounded-md bg-background focus:outline-hidden focus:ring-1 focus:ring-primary"
                 disabled={chatBusy}
               />
               <button
                 type="submit"
                 disabled={chatBusy || !chatInput.trim()}
-                className="px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 min-h-[48px] shrink-0"
               >
-                {chatBusy ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                {chatBusy ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} className={ar ? 'rotate-180' : ''} />}
                 <span>{t('Send', 'إرسال')}</span>
               </button>
             </form>
@@ -435,7 +435,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder={t('Full name', 'الاسم الكريم')}
-                      className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background"
+                      className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background"
                     />
                   </div>
                   <div>
@@ -449,7 +449,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@example.com"
-                      className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background"
+                      className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background"
                       dir="ltr"
                     />
                   </div>
@@ -466,7 +466,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="050 123 4567"
-                      className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background font-mono"
+                      className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background font-mono"
                       dir="ltr"
                     />
                   </div>
@@ -480,7 +480,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                       value={orderId}
                       onChange={(e) => setOrderId(e.target.value)}
                       placeholder="JBL-..."
-                      className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background uppercase font-mono"
+                      className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background uppercase font-mono"
                       dir="ltr"
                     />
                   </div>
@@ -501,7 +501,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                       'e.g. Custom print scaling, material choice, batch order inquiry',
                       'مثل: استفسار عن دقة الطباعة أو الحجم أو طلب كميات'
                     )}
-                    className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background"
                   />
                 </div>
 
@@ -520,16 +520,16 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                       'Tell us about your 3D model, questions or special requirements…',
                       'اكتب تفاصيل استفسارك أو طلبك الخاص…'
                     )}
-                    className="w-full px-3 py-2 text-xs border border-border rounded-sm bg-background resize-y"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[100px] border border-border rounded-sm bg-background resize-y"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[48px]"
                 >
-                  {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                  {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} className={ar ? 'rotate-180' : ''} />}
                   <span>{busy ? t('Submitting…', 'جارٍ الإرسال…') : t('Send Support Ticket', 'إرسال تذكرة الدعم')}</span>
                 </button>
               </form>
@@ -593,7 +593,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                   placeholder={t('Order code (e.g. JBL-1A2B)', 'رمز الطلب (مثل JBL-1A2B)')}
                   value={trackId}
                   onChange={(e) => setTrackId(e.target.value)}
-                  className="px-3 py-2 text-xs border border-border rounded-sm bg-background flex-1 uppercase tracking-wider"
+                  className="px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background flex-1 uppercase tracking-wider"
                   dir="ltr"
                   required
                 />
@@ -603,13 +603,13 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                   placeholder={t('Phone number used at checkout', 'رقم الجوال المستخدم عند الطلب')}
                   value={phoneQuery}
                   onChange={(e) => setPhoneQuery(e.target.value)}
-                  className="px-3 py-2 text-xs border border-border rounded-sm bg-background flex-1"
+                  className="px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background flex-1"
                   dir="ltr"
                   required
                 />
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors whitespace-nowrap cursor-pointer"
+                  className="px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors whitespace-nowrap cursor-pointer min-h-[44px]"
                 >
                   {t('Track Order', 'تتبع الطلب')}
                 </button>

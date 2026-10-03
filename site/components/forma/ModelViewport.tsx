@@ -316,6 +316,7 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
    cleanupScene=()=>{
     disposed=true;abort.abort();cancelAnimationFrame(frame);resizeObserver.disconnect();
     controls.removeEventListener('change',controlsChanged);controls.removeEventListener('start',controlsStarted);controls.removeEventListener('end',controlsEnded);controls.dispose();
+    renderer.domElement.removeEventListener('pointerdown',onCanvasPointerDown);renderer.domElement.removeEventListener('pointermove',onCanvasPointerMove);renderer.domElement.removeEventListener('pointerup',onCanvasPointerEnd);renderer.domElement.removeEventListener('pointercancel',onCanvasPointerEnd);
     element!.removeEventListener('pointermove',pointerMoved);element!.removeEventListener('pointerleave',pointerLeft);reducedMotion.removeEventListener('change',motionChanged);renderer.domElement.removeEventListener('webglcontextlost',contextLost);
     if(root)disposeObject(root,surface);surface.dispose();key.shadow.dispose();environment.dispose();shadowTexture.dispose();floor.geometry.dispose();(floor.material as THREE.Material).dispose();contact.geometry.dispose();(contact.material as THREE.Material).dispose();
     renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();api.current=null;updateRef.current=null;resumeScene=null;releaseContext(owner);
