@@ -53,6 +53,9 @@ function toPg(sql: string): string {
   out = out.replace(/json_extract\(([^,()]+),\s*'\$\.([^']+)'\)/g, "($1::jsonb->>'$2')");
   let i = 0;
   out = out.replace(/\?/g, () => '$' + (++i));
+  // ON CONFLICT DO UPDATE puts both the target table and EXCLUDED in scope,
+  // so the self-increment must be table-qualified for Postgres (D1/SQLite resolves it unqualified).
+  out = out.replace(/DO UPDATE SET count\s*=\s*count\s*\+\s*1/i, 'DO UPDATE SET count = limits.count + 1');
   return out;
 }
 function pgDb() {
