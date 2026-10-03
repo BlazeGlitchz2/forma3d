@@ -1,10 +1,14 @@
-import {env} from 'cloudflare:workers';
+let cfEnv: any = {};
+try {
+  // @ts-ignore
+  cfEnv = (await import('cloudflare:workers')).env;
+} catch {}
 import {cookies,headers} from 'next/headers';
 import {randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 import {products,materials,qualityOptions,normalizeCatalogProduct,normalizeCatalogMaterial,type Product,type Material} from './catalog';
-export const runtime=new Proxy((typeof env !== 'undefined' ? env : {}) as any, {
-  get(target, prop: string) {
-    if (prop in target) return target[prop];
+export const runtime=new Proxy({} as any, {
+  get(_target, prop: string) {
+    if (cfEnv && cfEnv[prop]) return cfEnv[prop];
     if (typeof process !== 'undefined' && process.env && process.env[prop]) return process.env[prop];
     return undefined;
   }

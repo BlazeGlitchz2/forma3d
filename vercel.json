@@ -3,8 +3,7 @@
   "services": {
     "app": {
       "root": "site",
-      "framework": "vite",
-      "outputDirectory": "dist/client",
+      "framework": "nextjs",
       "bindings": [
         {
           "type": "service",
