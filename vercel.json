@@ -15,7 +15,8 @@
     },
     "slicer-worker": {
       "root": "site/services/slicer-worker",
-      "runtime": "node"
+      "runtime": "node",
+      "entrypoint": "server.mjs"
     }
   },
   "rewrites": [
