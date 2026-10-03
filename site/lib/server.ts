@@ -112,7 +112,7 @@ function blobBucket() {
         return {body: res.body, arrayBuffer: () => res.arrayBuffer()};
       }
       try {
-        const b: any = await blobGet(key);
+        const b: any = await blobGet(key, {access: 'private'});
         if (!b || !b.stream) return null;
         return {body: b.stream as ReadableStream, arrayBuffer: () => new Response(b.stream).arrayBuffer()};
       } catch { return null; }
