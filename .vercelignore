@@ -1,0 +1,17 @@
+node_modules
+site/node_modules
+.next
+site/.next
+.wrangler
+site/.wrangler
+.playwright-cli
+site/.playwright-cli
+.playwright-mcp
+output
+dist
+site/dist
+backup_before_continuation
+*.png
+*.txt
+.DS_Store
+.git
