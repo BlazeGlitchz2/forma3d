@@ -1,6 +1,6 @@
 import {createClient, type Client} from '@libsql/client';
 import postgres, {type Sql} from 'postgres';
-import {put as blobPut, del as blobDel} from '@vercel/blob';
+import {put as blobPut, del as blobDel, get as blobGet} from '@vercel/blob';
 let cfEnv: any = {};
 try {
   // @ts-ignore
@@ -99,19 +99,26 @@ function pgDb() {
 function blobBucket() {
   if (typeof process === 'undefined' || !process.env.BLOB_READ_WRITE_TOKEN) return undefined;
   return {
-    // Returns the public URL; callers persist (url ?? key) so get()/delete() keep working on both backends.
+    // Returns nothing; callers persist the pathname key. Reads go through the
+    // token-authenticated server SDK so private stores work (no public URLs).
     async put(key: string, body: Uint8Array, opts?: {httpMetadata?: {contentType?: string}}) {
-      const res = await blobPut(key, body as any, {access: 'public', contentType: opts?.httpMetadata?.contentType, addRandomSuffix: false});
-      return {url: res.url};
+      await blobPut(key, body as any, {access: 'private', contentType: opts?.httpMetadata?.contentType, addRandomSuffix: false});
+      return {};
     },
     async get(key: string) {
-      if (!/^https?:\/\//.test(key)) return null;
-      const res = await fetch(key);
-      if (!res.ok) return null;
-      return {body: res.body, arrayBuffer: () => res.arrayBuffer()};
+      if (/^https?:\/\//.test(key)) {
+        const res = await fetch(key);
+        if (!res.ok) return null;
+        return {body: res.body, arrayBuffer: () => res.arrayBuffer()};
+      }
+      try {
+        const b: any = await blobGet(key);
+        if (!b || !b.stream) return null;
+        return {body: b.stream as ReadableStream, arrayBuffer: () => new Response(b.stream).arrayBuffer()};
+      } catch { return null; }
     },
     async delete(key: string) {
-      if (/^https?:\/\//.test(key)) await blobDel(key);
+      try { await blobDel(key); } catch {}
     },
   };
 }
