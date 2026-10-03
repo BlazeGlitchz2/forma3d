@@ -3,7 +3,8 @@
   "services": {
     "app": {
       "root": "site",
-      "framework": "nextjs",
+      "framework": null,
+      "outputDirectory": "dist/client",
       "bindings": [
         {
           "type": "service",
