@@ -4,13 +4,16 @@ export type Material = { id: string; name: string; description: string; descript
 export const printer = {name:'Ender-3 V3 SE',buildVolume:[220,220,250] as [number,number,number],nozzle:.4,filament:1.75};
 export const pricingPolicy = {perGram:.50,perHour:3,minimum:25,finishing:15};
 /** Supplier observations, not the owner's purchase invoices; SAR/kg. */
-export const filamentMarketCosts = {red:89,blue:87,grey:87,black:87,white:87};
+export const filamentMarketCosts = {red:89,blue:87,grey:87,black:87,white:87,transparent:89,yellow:87,green:87};
 export const colors = [
  { id:'red',name:'Red',ar:'أحمر',hex:'#c83b38' },
  { id:'blue',name:'Blue',ar:'أزرق',hex:'#326bbb' },
  { id:'grey',name:'Grey',ar:'رمادي',hex:'#96999d' },
  { id:'black',name:'Black',ar:'أسود',hex:'#292d32' },
  { id:'white',name:'White',ar:'أبيض',hex:'#f2f1ea' },
+ { id:'transparent',name:'Transparent',ar:'شفاف',hex:'#d3e2e2' },
+ { id:'yellow',name:'Yellow',ar:'أصفر',hex:'#eab308' },
+ { id:'green',name:'Green',ar:'أخضر',hex:'#2fa44f' },
 ];
 export const products: Product[] = [
  {id:'ripple-vase',name:'The Ripple Vase',nameAr:'مزهرية ريبل',category:'Room',kind:'vase',price:69,dimensions:[105,105,160],estimatedGrams:102,estimatedMinutes:347,description:'A little sculpture for your everyday space. A twisting silhouette with a satisfyingly tactile finish. Designed for dried stems; use a liner for water.',descriptionAr:'قطعة منحوتة لمساحتك اليومية، بشكل ملتف ولمسة ملموسة. مناسبة للزهور المجففة؛ استخدم بطانة للماء.',color:'blue',available:true,featured:true},

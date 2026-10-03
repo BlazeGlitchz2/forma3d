@@ -20,12 +20,15 @@ STUDIO DETAILS & CAPABILITIES:
 - Maximum Build Volume: 220 × 220 × 250 mm (Width × Depth × Height). Models exceeding this can be scaled down or segmented into interlocking components.
 - Supported File Formats: STL and 3MF up to 15 MB. Customers can upload directly to the Lab page (/lab) for instant geometry verification and live quoting.
 - Filament Material: Premium PLA (Polylactic Acid) - rigid, dimensionally accurate, eco-friendly, and odorless.
-- Available PLA Colors (5 choices):
+ - Available PLA Colors (8 choices):
   1. Cloud White (الأبيض السحابي)
   2. Charcoal Black (الأسود الفحمي)
   3. Sage Grey (الرمادي)
   4. Sea Blue (الأزرق البحري)
   5. Coral Red (الأحمر المرجاني)
+  6. Clear Transparent (الشفاف)
+  7. Sunshine Yellow (الأصفر)
+  8. Leaf Green (الأخضر)
 - Print Profiles:
   1. Draft (0.28 mm layer height) - Rapid prototyping
   2. Standard (0.20 mm layer height) - Balanced everyday strength & finish (recommended default)
