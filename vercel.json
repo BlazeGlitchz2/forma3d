@@ -3,7 +3,7 @@
   "services": {
     "app": {
       "root": "site",
-      "framework": null,
+      "buildCommand": "npm run build",
       "outputDirectory": "dist/client",
       "bindings": [
         {
