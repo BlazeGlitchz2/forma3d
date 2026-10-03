@@ -1,4 +1,5 @@
 import {createClient, type Client} from '@libsql/client';
+import postgres, {type Sql} from 'postgres';
 import {put as blobPut, del as blobDel} from '@vercel/blob';
 let cfEnv: any = {};
 try {
@@ -9,7 +10,7 @@ import {cookies,headers} from 'next/headers';
 import {randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 import {products,materials,qualityOptions,normalizeCatalogProduct,normalizeCatalogMaterial,type Product,type Material} from './catalog';
 
-// ---- Pluggable storage: Cloudflare D1/R2 where native, Turso/Vercel Blob on Vercel ----
+// ---- Pluggable storage: Cloudflare D1/R2 where native, Turso/Supabase + Vercel Blob on Vercel ----
 let tursoClient: Client | null = null;
 function tursoDb() {
   const url = typeof process !== 'undefined' ? process.env.TURSO_DATABASE_URL : undefined;
@@ -18,28 +19,75 @@ function tursoDb() {
     tursoClient ??= createClient({url, authToken: process.env.TURSO_AUTH_TOKEN});
   } catch { return undefined; }
   const client = tursoClient;
-  // Minimal D1-compatible shim so every existing prepare/bind/first/all/run call site works unchanged.
+  // Minimal D1-compatible shim so every existing prepare/bind/first/all/run/batch call site works unchanged.
+  const mkBound = (q: string, params: any[]) => ({
+    _q: q, _params: params,
+    async first<T = any>(): Promise<T | null> {
+      const r = await client.execute({sql: q, args: params as any});
+      return ((r.rows[0] ?? null) as any);
+    },
+    async all<T = any>(): Promise<{results: T[]}> {
+      const r = await client.execute({sql: q, args: params as any});
+      return {results: r.rows as any};
+    },
+    async run() {
+      const r = await client.execute({sql: q, args: params as any});
+      return {success: true, meta: {changes: r.rowsAffected}};
+    },
+  });
   return {
     prepare(sql: string) {
-      return {
-        bind(...params: any[]) {
-          const runQuery = () => client.execute({sql, args: params as any});
-          return {
-            async first<T = any>(): Promise<T | null> {
-              const r = await runQuery();
-              return ((r.rows[0] ?? null) as any);
-            },
-            async all<T = any>(): Promise<{results: T[]}> {
-              const r = await runQuery();
-              return {results: r.rows as any};
-            },
-            async run() {
-              await runQuery();
-              return {success: true};
-            },
-          };
-        },
-      };
+      return {bind: (...params: any[]) => mkBound(sql, params)};
+    },
+    async batch(list: any[]) {
+      const out = await client.batch(list.map(s => ({sql: s._q, args: s._params as any})));
+      return out.map(r => ({success: true, meta: {changes: r.rowsAffected}}));
+    },
+  };
+}
+let pgSql: Sql | null = null;
+// Translate SQLite-flavoured statements to Postgres: ? -> $n and json_extract -> ->>.
+function toPg(sql: string): string {
+  let out = sql.replace(/json_extract\(([^,()]+),\s*'\$\.([^']+)'\)\s*=\s*1/g, "($1::jsonb->>'$2')::boolean = true");
+  out = out.replace(/json_extract\(([^,()]+),\s*'\$\.([^']+)'\)/g, "($1::jsonb->>'$2')");
+  let i = 0;
+  out = out.replace(/\?/g, () => '$' + (++i));
+  return out;
+}
+function pgDb() {
+  const url = typeof process !== 'undefined' ? process.env.SUPABASE_DB_URL : undefined;
+  if (!url) return undefined;
+  try {
+    // Transaction-pooler friendly: no prepared statements, tiny pool for serverless.
+    pgSql ??= postgres(url, {prepare: false, max: 1, idle_timeout: 5, connect_timeout: 10});
+  } catch { return undefined; }
+  const sql = pgSql;
+  const mkBound = (q: string, params: any[]) => ({
+    _q: q, _params: params,
+    async first<T = any>(): Promise<T | null> {
+      const rows: any = await (sql as any).unsafe(toPg(q), params);
+      return ((rows[0] ?? null) as any);
+    },
+    async all<T = any>(): Promise<{results: T[]}> {
+      const rows: any = await (sql as any).unsafe(toPg(q), params);
+      return {results: rows as any};
+    },
+    async run() {
+      const rows: any = await (sql as any).unsafe(toPg(q), params);
+      return {success: true, meta: {changes: rows.count ?? 0}};
+    },
+  });
+  return {
+    prepare(q: string) {
+      return {bind: (...params: any[]) => mkBound(q, params)};
+    },
+    async batch(list: any[]) {
+      const out = [];
+      for (const s of list) {
+        const rows: any = await (sql as any).unsafe(toPg(s._q), s._params);
+        out.push({success: true, meta: {changes: rows.count ?? 0}});
+      }
+      return out;
     },
   };
 }
@@ -62,10 +110,10 @@ function blobBucket() {
     },
   };
 }
-export function hasDb(){return !!(cfEnv?.DB || (typeof process !== 'undefined' && process.env.TURSO_DATABASE_URL))}
+export function hasDb(){return !!(cfEnv?.DB || (typeof process !== 'undefined' && (process.env.TURSO_DATABASE_URL || process.env.SUPABASE_DB_URL)))}
 export const runtime=new Proxy({} as any, {
   get(_target, prop: string) {
-    if (prop === 'DB') return cfEnv?.DB ?? tursoDb();
+    if (prop === 'DB') return cfEnv?.DB ?? tursoDb() ?? pgDb();
     if (prop === 'BUCKET') return cfEnv?.BUCKET ?? blobBucket();
     if (cfEnv && cfEnv[prop]) return cfEnv[prop];
     if (typeof process !== 'undefined' && process.env && process.env[prop]) return process.env[prop];
@@ -98,7 +146,7 @@ const memLimits=new Map<string,{count:number;reset:number}>();
 export async function getCatalog(){try{const rows=await db().prepare('SELECT id,data,type FROM catalog').all<{id:string;data:string;type:string}>();const saved=new Map(rows.results.map(r=>[r.id,JSON.parse(r.data)]));const productRows:Product[]=products.map(p=>saved.get('product:'+p.id)??p);for(const r of rows.results)if(r.type==='product'&&!products.some(p=>'product:'+p.id===r.id))productRows.push(JSON.parse(r.data));const materialRows:Material[]=materials.map(m=>saved.get('material:'+m.id)??m);for(const r of rows.results)if(r.type==='material'&&!materials.some(m=>'material:'+m.id===r.id))materialRows.push(JSON.parse(r.data));const categories=saved.get('categories')??['All','Desk setup','Room','Useful','Gifts','Miniatures'];const normalized=productRows.map(normalizeCatalogProduct);const modelIds=[...new Set(normalized.flatMap(p=>p.modelId?[p.modelId]:[]))];const modelDimensions=new Map<string,Product['dimensions']>();for(let offset=0;offset<modelIds.length;offset+=80){const group=modelIds.slice(offset,offset+80);const modelRows=await db().prepare('SELECT id,stats FROM uploads WHERE id IN ('+group.map(()=>'?').join(',')+')').bind(...group).all<{id:string;stats:string}>();for(const row of modelRows.results)modelDimensions.set(row.id,JSON.parse(row.stats).dimensions)}return{products:normalized.map(p=>p.modelId&&modelDimensions.has(p.modelId)?{...p,dimensions:modelDimensions.get(p.modelId)!}:p),materials:materialRows.map(normalizeCatalogMaterial),categories,profiles:(saved.get('profiles')??qualityOptions) as typeof qualityOptions,slicingAvailable:!!runtime.SLICER_URL};
   }catch(e){
     // No database configured yet: serve the built-in catalog so the storefront works.
-    // Admin overrides, uploaded-model dimensions and saved snapshots need storage (see TURSO_*).
+    // Admin overrides, uploaded-model dimensions and saved snapshots need storage (see SUPABASE_DB_URL).
     if(hasDb())throw e;
     return{products:products.map(normalizeCatalogProduct),materials:materials.map(normalizeCatalogMaterial),categories:['All','Desk setup','Room','Useful','Gifts','Miniatures'],profiles:qualityOptions,slicingAvailable:!!runtime.SLICER_URL};
   }
