@@ -148,6 +148,35 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
    controls.enablePan=false;controls.enableDamping=false;controls.maxPolarAngle=Math.PI*.85;controls.mouseButtons.RIGHT=THREE.MOUSE.ROTATE;
    // Vertical gestures belong to the page; horizontal gestures rotate the object.
    renderer.domElement.style.touchAction='pan-y';
+   let touchOrigin:{x:number;y:number;id:number}|null=null, activeTouchCount=0, touchIntent:'scroll'|'rotate'|null=null;
+   const onCanvasPointerDown=(event:PointerEvent)=>{
+    if(event.pointerType!=='touch')return;
+    activeTouchCount++;
+    if(activeTouchCount===1){touchOrigin={x:event.clientX,y:event.clientY,id:event.pointerId};touchIntent=null;}
+    else if(activeTouchCount>=2){touchIntent='rotate';controls.enableRotate=true;controls.enableZoom=true;}
+   };
+   const onCanvasPointerMove=(event:PointerEvent)=>{
+    if(event.pointerType!=='touch'||!touchOrigin||activeTouchCount>1)return;
+    if(event.pointerId!==touchOrigin.id)return;
+    if(!touchIntent){
+     const dx=Math.abs(event.clientX-touchOrigin.x), dy=Math.abs(event.clientY-touchOrigin.y);
+     if(dy>dx&&dy>7){
+      touchIntent='scroll';controls.enableRotate=false;
+      try{if(renderer.domElement.hasPointerCapture(event.pointerId))renderer.domElement.releasePointerCapture(event.pointerId);}catch{}
+     }else if(dx>=dy&&dx>7){
+      touchIntent='rotate';controls.enableRotate=true;
+     }
+    }
+   };
+   const onCanvasPointerEnd=(event:PointerEvent)=>{
+    if(event.pointerType!=='touch')return;
+    activeTouchCount=Math.max(0,activeTouchCount-1);
+    if(activeTouchCount===0){touchOrigin=null;touchIntent=null;controls.enableRotate=true;}
+   };
+   renderer.domElement.addEventListener('pointerdown',onCanvasPointerDown,{passive:true});
+   renderer.domElement.addEventListener('pointermove',onCanvasPointerMove,{passive:true});
+   renderer.domElement.addEventListener('pointerup',onCanvasPointerEnd,{passive:true});
+   renderer.domElement.addEventListener('pointercancel',onCanvasPointerEnd,{passive:true});
    renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.91;
    renderer.shadowMap.type=THREE.PCFShadowMap;renderer.setClearColor(0x000000,0);element!.appendChild(renderer.domElement);
    const room=new RoomEnvironment(), pmrem=new THREE.PMREMGenerator(renderer), environment=pmrem.fromScene(room,.045);
@@ -331,7 +360,7 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
   return()=>{unmounted=true;observer.disconnect();clearTimeout(retireTimer);waitingViewports.delete(owner);cleanupScene?.();cleanupScene=null;releaseContext(owner);};
  },[kind,file,compact,modelUrl,studio,cinematic]);
 
- return <div className={`model-viewport object-viewport ${compact?'compact':''} ${studio?'studio-viewer':''} ${cinematic?'cinematic-viewer':''} ${ready?'object-ready':''} ${failed?'object-unavailable':''}`}>
+  return <div className={`model-viewport object-viewport ${compact?'compact':''} ${studio?'studio-viewer':''} ${cinematic?'cinematic-viewer':''} ${ready?'object-ready':''} ${failed?'object-unavailable':''}`} onDragStart={event=>event.preventDefault()}>
   <div className="canvas-host" ref={host} role="img" tabIndex={compact?undefined:0}
    aria-label={failed?(ar?'معاينة ثابتة للقطعة. العرض ثلاثي الأبعاد غير متاح.':'Static object illustration. 3D preview unavailable.'):compact?(ar?'معاينة القطعة':'Object preview'):(ar?'معاينة ثلاثية الأبعاد. اسحب أو استخدم الأسهم لعرض القطعة، وعلامتي زائد وناقص للتكبير.':'Interactive 3D preview. Drag or use arrow keys to view the object. Use plus and minus to zoom.')}
    onKeyDown={event=>{const actions:Record<string,()=>void>={ArrowLeft:()=>api.current?.rotate(-Math.PI/8),ArrowRight:()=>api.current?.rotate(Math.PI/8),ArrowUp:()=>api.current?.view('top'),ArrowDown:()=>api.current?.view('front'),'+':()=>api.current?.zoom(.85),'=':()=>api.current?.zoom(.85),'-':()=>api.current?.zoom(1.15),Home:()=>api.current?.reset()};if(actions[event.key]){event.preventDefault();actions[event.key]();}}}/>
