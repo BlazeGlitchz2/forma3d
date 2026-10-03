@@ -1,0 +1,13 @@
+node_modules
+.DS_Store
+.env
+.env.local
+.env*.local
+.vercel
+.wrangler
+.playwright-cli
+.playwright-mcp
+output
+dist
+*.log
+backup_before_continuation

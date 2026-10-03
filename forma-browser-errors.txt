@@ -1,0 +1,10 @@
+Total messages: 4 (Errors: 2, Warnings: 0)
+Returning 2 messages for level "error"
+
+[ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3000/:0
+[ERROR] [vite] Internal Server Error
+Network connection lost.
+    at runInRunnerObject (workers/runner-worker/index.js:107:3)
+    at getWorkerEntryExport (workers/runner-worker/index.js:235:17)
+    at null.<anonymous> (workers/runner-worker/index.js:354:24)
+    at maybeCaptureError (workers/runner-worker/index.js:51:10) @ http://127.0.0.1:3000/@vite/client:509

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "app": {
+      "root": "site",
+      "framework": "nextjs",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "slicer-worker",
+          "format": "url",
+          "env": "SLICER_URL"
+        }
+      ]
+    },
+    "slicer-worker": {
+      "root": "site/services/slicer-worker",
+      "runtime": "node"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "app"
+      }
+    }
+  ]
+}

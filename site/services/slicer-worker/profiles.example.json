@@ -1,0 +1,1 @@
+{"machine":"/absolute/path/to/Ender-3-V3-SE-0.4-nozzle.json","materials":{"pla":"/absolute/path/to/calibrated-PLA-1.75mm.json"},"qualities":{"fast":"/absolute/path/to/Ender-3-V3-SE-0.28mm.json","standard":"/absolute/path/to/Ender-3-V3-SE-0.20mm.json","smooth":"/absolute/path/to/Ender-3-V3-SE-0.16mm.json","detail":"/absolute/path/to/Ender-3-V3-SE-0.12mm.json"}}

@@ -1,0 +1,28 @@
+.object-viewport{position:relative;isolation:isolate;width:100%;height:470px;min-width:0;color:var(--ink);overflow:visible;background:transparent}
+.object-viewport.compact{height:100%;min-height:120px;pointer-events:none}
+.object-viewport .canvas-host{position:absolute;inset:0;width:100%;height:100%;touch-action:pan-y;background:transparent}
+.object-viewport .canvas-host canvas{display:block;width:100%;height:100%;touch-action:pan-y;cursor:grab}
+.object-viewport .canvas-host canvas:active{cursor:grabbing}
+.object-viewport .canvas-host:focus-visible{outline:2px solid var(--cobalt);outline-offset:-3px}
+.object-viewport .model-fallback{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;pointer-events:none;padding:0;background:transparent}
+.object-viewport .object-silhouette{display:block;width:94%;height:94%;max-width:none;filter:none}
+.object-viewport .model-fallback p{position:absolute;inset-inline:18px;bottom:18px;max-width:340px;margin:auto;text-align:center;font-size:12px;line-height:1.5;background:var(--paper);padding:8px 12px;color:var(--ink)}
+.object-viewport .drag-hint{position:absolute;bottom:14px;inset-inline-start:50%;transform:translateX(-50%);display:flex;gap:7px;align-items:center;white-space:nowrap;font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:inherit;opacity:.55;pointer-events:none}
+.object-viewport .drag-dot{width:4px;height:4px;border-radius:50%;background:currentColor;display:inline-block;opacity:.8}
+.object-viewport .drag-text{display:inline-block}
+.site-root[dir=rtl] .object-viewport .drag-hint{transform:translateX(50%)}
+.object-viewport .viewer-tools{position:absolute;left:auto;right:auto;inset-inline-start:16px;inset-inline-end:auto;bottom:44px;top:auto;display:flex;gap:8px;transform:none;z-index:4}
+.object-viewport .viewer-secondary{position:absolute;left:auto;right:auto;inset-inline-end:16px;inset-inline-start:auto;bottom:44px;top:auto;display:flex;gap:8px;transform:none;z-index:4}
+.object-viewport .viewer-tools button,.object-viewport .viewer-secondary button,.object-viewport .viewer-secondary summary{position:relative;display:flex;justify-content:center;align-items:center;width:44px;height:44px;min-height:44px;padding:0;border:1px solid color-mix(in srgb,var(--ink) 16%,transparent);border-radius:50%;background:color-mix(in srgb,var(--paper) 80%,transparent);color:var(--ink);cursor:pointer;list-style:none;box-shadow:none;backdrop-filter:none}
+.object-viewport .viewer-secondary summary::-webkit-details-marker{display:none}
+.object-viewport .viewer-tools button:after,.object-viewport .viewer-secondary button:after,.object-viewport .viewer-secondary summary:after{display:none}
+.object-viewport .viewer-tools button:hover,.object-viewport .viewer-secondary button:hover,.object-viewport .viewer-secondary summary:hover{background:var(--ink);color:var(--paper);transform:none}
+.object-viewport .viewer-tools button:focus-visible,.object-viewport .viewer-secondary button:focus-visible,.object-viewport .viewer-secondary summary:focus-visible{outline:2px solid var(--cobalt);outline-offset:3px}
+.object-viewport .viewer-secondary details{position:relative}
+.object-viewport .view-menu{position:absolute;inset-inline-end:0;bottom:54px;display:grid;gap:0;min-width:106px;padding:4px;border:1px solid color-mix(in srgb,var(--ink) 20%,transparent);background:var(--paper);border-radius:0;box-shadow:none}
+.object-viewport .view-menu button{width:100%;border:0;border-radius:0;min-height:44px;padding:8px 12px;font-size:13px;text-transform:capitalize}
+.object-viewport.cinematic-viewer .drag-hint{bottom:4px}
+.object-viewport.cinematic-viewer .object-silhouette{width:100%;height:100%}
+.object-viewport .orbit-guide{display:none}
+@media(max-width:600px){.object-viewport{height:410px}.object-viewport .viewer-tools{inset-inline-start:10px;bottom:40px}.object-viewport .viewer-secondary{inset-inline-end:10px;bottom:40px;gap:6px}.object-viewport .drag-hint{bottom:8px}.object-viewport .model-fallback p{bottom:18px;max-width:285px}.object-viewport.compact{min-height:110px}}
+@media(prefers-reduced-motion:reduce){.object-viewport,.object-viewport *{animation:none!important;transition:none!important}}
