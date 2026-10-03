@@ -37,7 +37,8 @@ function tursoDb() {
   });
   return {
     prepare(sql: string) {
-      return {bind: (...params: any[]) => mkBound(sql, params)};
+      const unbound = mkBound(sql, []);
+      return {bind: (...params: any[]) => mkBound(sql, params), first: () => unbound.first(), all: () => unbound.all(), run: () => unbound.run()};
     },
     async batch(list: any[]) {
       const out = await client.batch(list.map(s => ({sql: s._q, args: s._params as any})));
@@ -79,7 +80,8 @@ function pgDb() {
   });
   return {
     prepare(q: string) {
-      return {bind: (...params: any[]) => mkBound(q, params)};
+      const unbound = mkBound(q, []);
+      return {bind: (...params: any[]) => mkBound(q, params), first: () => unbound.first(), all: () => unbound.all(), run: () => unbound.run()};
     },
     async batch(list: any[]) {
       const out = [];
