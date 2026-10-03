@@ -3,7 +3,7 @@
   "services": {
     "app": {
       "root": "site",
-      "buildCommand": "npm run build",
+      "framework": "vite",
       "outputDirectory": "dist/client",
       "bindings": [
         {
