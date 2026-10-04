@@ -224,7 +224,10 @@ export default function WorldRenderer({scene:state,commandRef,onReady,onFailed}:
     window.addEventListener('pointermove',move,{passive:true});window.addEventListener('pointermove',drag,{passive:true});window.addEventListener('pointerdown',start,{passive:true});window.addEventListener('pointerup',end);window.addEventListener('pointercancel',end);window.addEventListener('blur',end);document.addEventListener('pointerleave',leave);
     const visibility=()=>{if(document.visibilityState==='hidden'){cancelAnimationFrame(frame);frame=0}else{transitionAt=performance.now();requestFrame()}};document.addEventListener('visibilitychange',visibility);
     const motion=()=>{if(reduced.matches){revealAt=0;pointer.set(0,0);pointerGoal.set(0,0);if(points){world.remove(points);disposeTree(points);points=null}if(construction){world.remove(construction);disposeTree(construction);construction=null}element!.dataset.materialization='solid';shadowMaterial.opacity=1;setStructure(!!stateRef.current.wireframe||stateRef.current.stage==='pending')}fitShot()};reduced.addEventListener('change',motion);
-    const lost=(event:Event)=>{event.preventDefault();onFailed(true);onReady(false);cancelAnimationFrame(frame)};renderer.domElement.addEventListener('webglcontextlost',lost);
+    const lost=(event:Event)=>{event.preventDefault();onFailed(true);onReady(false);cancelAnimationFrame(frame)};
+    const restored=()=>{onFailed(false);transitionAt=performance.now();requestFrame();};
+    renderer.domElement.addEventListener('webglcontextlost',lost);
+    renderer.domElement.addEventListener('webglcontextrestored',restored);
     commandRef.current=command=>{
       if(command==='reset'){orbitX=0;orbitY=0;zoom=1}
       if(command==='left')orbitX-=Math.PI/8;if(command==='right')orbitX+=Math.PI/8;
@@ -235,7 +238,7 @@ export default function WorldRenderer({scene:state,commandRef,onReady,onFailed}:
     update();
     return()=>{
       disposed=true;loadGeneration++;cancelAnimationFrame(frame);observer.disconnect();controls.dispose();
-      window.removeEventListener('pointermove',move);window.removeEventListener('pointermove',drag);window.removeEventListener('pointerdown',start);window.removeEventListener('pointerup',end);window.removeEventListener('pointercancel',end);window.removeEventListener('blur',end);document.removeEventListener('pointerleave',leave);document.removeEventListener('visibilitychange',visibility);reduced.removeEventListener('change',motion);renderer.domElement.removeEventListener('webglcontextlost',lost);
+      window.removeEventListener('pointermove',move);window.removeEventListener('pointermove',drag);window.removeEventListener('pointerdown',start);window.removeEventListener('pointerup',end);window.removeEventListener('pointercancel',end);window.removeEventListener('blur',end);document.removeEventListener('pointerleave',leave);document.removeEventListener('visibilitychange',visibility);reduced.removeEventListener('change',motion);renderer.domElement.removeEventListener('webglcontextlost',lost);renderer.domElement.removeEventListener('webglcontextrestored',restored);
       disposeTree(world,[surface,structureSurface]);surface.dispose();structureSurface.dispose();key.shadow.dispose();environment.dispose();shadowMap.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();commandRef.current=null;updateRef.current=null;
     };
   },[commandRef,onReady,onFailed]);

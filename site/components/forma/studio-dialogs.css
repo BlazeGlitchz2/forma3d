@@ -8,6 +8,7 @@
   box-shadow: 0 28px 90px rgba(28, 29, 25, .22), 0 3px 12px rgba(28, 29, 25, .08);
   scrollbar-color: #b7b7aa transparent;
   scrollbar-width: thin;
+  max-height: 92vh !important;
   max-height: 92dvh !important;
   overflow-y: auto !important;
   overscroll-behavior: contain !important;
@@ -310,6 +311,7 @@
   grid-template-columns: repeat(4, minmax(0,1fr));
 }
 .support-dialog .chat-history-box {
+  height: clamp(220px, 34vh, 360px);
   height: clamp(220px, 34dvh, 360px);
   padding: 16px;
   border: 1px solid rgba(36,37,31,.1);
@@ -385,6 +387,7 @@
     display: flex !important;
     flex-direction: column;
     gap: 14px;
+    max-height: 92vh !important;
     max-height: 92dvh !important;
     padding: 20px 16px 24px !important;
     border-radius: 20px !important;
@@ -424,6 +427,7 @@
 
   .support-dialog {
     width: calc(100vw - 20px) !important;
+    max-height: 92vh !important;
     max-height: 92dvh !important;
     padding: 20px 16px 24px !important;
     border-radius: 20px !important;
@@ -439,6 +443,7 @@
     font-size: 12px;
   }
   .support-dialog .chat-history-box {
+    height: clamp(190px, 28vh, 250px);
     height: clamp(190px, 28dvh, 250px);
     padding: 12px;
   }

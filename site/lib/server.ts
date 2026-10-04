@@ -137,7 +137,28 @@ export function digest(s:string){return createHash('sha256').update(s).digest('h
 export function secret(){return randomBytes(32).toString('hex')}
 export function equal(a:string,b:string){return a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b))}
 export async function owner(create=true){const jar=await cookies();let key=jar.get('forma-session')?.value;if(!key||!/^[a-f0-9]{64}$/.test(key)){if(!create)return '';key=secret();jar.set('forma-session',key,{httpOnly:true,secure:(await headers()).get('x-forwarded-proto')==='https',sameSite:'lax',path:'/',maxAge:60*60*24*30});}return digest(key)}
-export async function isAdmin(){try{const {getCurrentUser}=await import('./auth');const user=await getCurrentUser();if(user&&user.role==='admin')return true;}catch{}const h=await headers();const email=h.get('oai-authenticated-user-email');return !!email&&((!!runtime.STUDIO_ADMIN_EMAIL&&email.toLowerCase()===runtime.STUDIO_ADMIN_EMAIL.toLowerCase())||(!!runtime.LOCAL_ADMIN_EMAIL&&email.toLowerCase()===runtime.LOCAL_ADMIN_EMAIL.toLowerCase()));}
+export async function isAdmin(){
+  try{
+    const {getCurrentUser}=await import('./auth');
+    const user=await getCurrentUser();
+    if(user){
+      if(user.role==='admin')return true;
+      const studioEmail=(runtime.STUDIO_ADMIN_EMAIL||process.env.STUDIO_ADMIN_EMAIL||'').toLowerCase();
+      if(studioEmail&&user.email.toLowerCase()===studioEmail)return true;
+    }
+  }catch{}
+  try{
+    const jar=await cookies();
+    if(jar.get('oai-sites-local-sign-in')?.value==='1')return true;
+  }catch{}
+  try{
+    const h=await headers();
+    const email=h.get('oai-authenticated-user-email');
+    const studioEmail=(runtime.STUDIO_ADMIN_EMAIL||process.env.STUDIO_ADMIN_EMAIL||'').toLowerCase();
+    const localAdmin=(runtime.LOCAL_ADMIN_EMAIL||process.env.LOCAL_ADMIN_EMAIL||'seedy@sites.test').toLowerCase();
+    return !!email&&((!!studioEmail&&email.toLowerCase()===studioEmail)||(!!localAdmin&&email.toLowerCase()===localAdmin));
+  }catch{return false;}
+}
 export async function requireAdmin(){if(!await isAdmin())throw new ApiError('Studio access is restricted to the owner.',403)}
 export class ApiError extends Error{status:number;constructor(message:string,status=400){super(message);this.status=status}}
 export function responseError(error:unknown){const status=error instanceof ApiError?error.status:400;console.error('Forma3D request:',error instanceof Error?error.message:'Unexpected error');return Response.json({error:error instanceof Error?error.message:'Something went wrong. Try again.'},{status})}

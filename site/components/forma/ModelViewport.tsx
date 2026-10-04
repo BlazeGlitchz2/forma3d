@@ -306,7 +306,12 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
     event.preventDefault();unsupported=true;
     if(!unmounted){setFailed(true);setReady(false);queueMicrotask(()=>{cleanupScene?.();cleanupScene=null;});}
    };
+   const contextRestored=()=>{
+    unsupported=false;
+    if(!unmounted){setFailed(false);requestMotion();}
+   };
    renderer.domElement.addEventListener('webglcontextlost',contextLost);
+   renderer.domElement.addEventListener('webglcontextrestored',contextRestored);
    api.current={
     reset:()=>{camera.position.copy(start);controls.target.copy(target);controls.update();ensureFraming();render();},
     zoom:value=>{const offset=camera.position.clone().sub(controls.target), distance=THREE.MathUtils.clamp(offset.length()*value,controls.minDistance,controls.maxDistance);camera.position.copy(controls.target).add(offset.setLength(distance));controls.update();render();},
@@ -317,7 +322,7 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
     disposed=true;abort.abort();cancelAnimationFrame(frame);resizeObserver.disconnect();
     controls.removeEventListener('change',controlsChanged);controls.removeEventListener('start',controlsStarted);controls.removeEventListener('end',controlsEnded);controls.dispose();
     renderer.domElement.removeEventListener('pointerdown',onCanvasPointerDown);renderer.domElement.removeEventListener('pointermove',onCanvasPointerMove);renderer.domElement.removeEventListener('pointerup',onCanvasPointerEnd);renderer.domElement.removeEventListener('pointercancel',onCanvasPointerEnd);
-    element!.removeEventListener('pointermove',pointerMoved);element!.removeEventListener('pointerleave',pointerLeft);reducedMotion.removeEventListener('change',motionChanged);renderer.domElement.removeEventListener('webglcontextlost',contextLost);
+    element!.removeEventListener('pointermove',pointerMoved);element!.removeEventListener('pointerleave',pointerLeft);reducedMotion.removeEventListener('change',motionChanged);renderer.domElement.removeEventListener('webglcontextlost',contextLost);renderer.domElement.removeEventListener('webglcontextrestored',contextRestored);
     if(root)disposeObject(root,surface);surface.dispose();key.shadow.dispose();environment.dispose();shadowTexture.dispose();floor.geometry.dispose();(floor.material as THREE.Material).dispose();contact.geometry.dispose();(contact.material as THREE.Material).dispose();
     renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();api.current=null;updateRef.current=null;resumeScene=null;releaseContext(owner);
    };

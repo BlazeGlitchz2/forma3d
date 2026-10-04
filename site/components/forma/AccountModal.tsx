@@ -527,11 +527,12 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
 
               <div className="mt-4 pt-3 border-t border-border/40 text-center">
                 <a
-                  href="/signin-with-chatgpt?return_to=%2Fadmin"
+                  href="/admin"
+                  onClick={() => onOpenChange(false)}
                   className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                 >
                   <ExternalLink size={12} />
-                  <span>{t('Sign in via Studio Single Sign-On (SSO)', 'تسجيل الدخول عبر نظام الاستوديو الموحد')}</span>
+                  <span>{t('Studio Operator Portal', 'بوابة المشرف على الاستوديو')}</span>
                 </a>
               </div>
             </TabsContent>
