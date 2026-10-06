@@ -689,8 +689,8 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                 </div>
                 <p className="text-muted-foreground leading-relaxed">
                   {t(
-                    'We accept STL, 3MF and OBJ files up to 15 MB. Our Creality Ender-3 V3 SE offers a maximum build volume of 220 × 220 × 250 mm.',
-                    'نقبل ملفات STL و3MF حتى ١٥ ميغابايت. مساحة الطباعة على جهاز Ender-3 V3 SE هي ٢٢٠ × ٢٢٠ × ٢٥٠ مم.'
+                    'We accept STL and single-part 3MF files up to 50 MB. Our Creality Ender-3 V3 SE offers a maximum build volume of 220 × 220 × 250 mm.',
+                    'نقبل ملفات STL و3MF أحادية الجزء حتى ٥٠ ميغابايت. مساحة الطباعة على جهاز Ender-3 V3 SE هي ٢٢٠ × ٢٢٠ × ٢٥٠ مم.'
                   )}
                 </p>
               </div>

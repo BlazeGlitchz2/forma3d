@@ -40,7 +40,7 @@ export default function ObjectCinema({ar,products,materials,palette}:Shared){
   <section className="world-shot world-invitation" ref={invitation} aria-labelledby="file-title">
    <div className="world-shot-top hud"><span>{t('Your geometry belongs here','هندستك مكانها هنا')}</span><span>STL / 3MF</span></div>
    <h2 id="file-title" className="world-display">{t('A FILE.','ملف.')}<br/>{t('A FIRST','خطوة')}<br/>{t('STEP.','أولى.')}</h2>
-   <div className="world-invitation-copy hud"><p>{t('Drop your model. Choose the material.','ضع نموذجك. اختر الخامة.')}<br/>{t('We print it right here.','نطبعه هنا في الجبيل.')}</p><Link href="/lab" className="world-action world-action-main">{t('Bring your model','أحضر نموذجك')}<DirectionArrow/></Link><span>{t('Private files / up to 15 MB','ملفات خاصة / حتى ١٥ ميغابايت')}</span></div>
+   <div className="world-invitation-copy hud"><p>{t('Drop your model. Choose the material.','ضع نموذجك. اختر الخامة.')}<br/>{t('We print it right here.','نطبعه هنا في الجبيل.')}</p><Link href="/lab" className="world-action world-action-main">{t('Bring your model','أحضر نموذجك')}<DirectionArrow/></Link><span>{t('Private files / up to 50 MB','ملفات خاصة / حتى ٥٠ ميغابايت')}</span></div>
    <div className="world-shot-bottom hud"><span>{t('DIGITAL → PHYSICAL','رقمي ← ملموس')}</span><span>{t('No account needed','بدون حساب')}</span></div>
   </section>
   <section className="world-shot world-local" ref={local} aria-labelledby="local-title">

@@ -9,6 +9,7 @@ import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import type {ProductKind} from '@/lib/catalog';
 import {validateModel} from '@/lib/model-validation';
 import {createProductGeometry} from '@/lib/geometry';
+import {MAX_TRIANGLES} from '@/lib/upload-limits';
 
 export type ModelStats = {dimensions:[number,number,number];volume:number;triangles:number};
 type ViewportProps = {
@@ -49,7 +50,11 @@ export async function parseModel(file:File):Promise<{object:THREE.Object3D;stats
  const bytes=await file.arrayBuffer();const validated=validateModel(new Uint8Array(bytes),file.name);
  let object:THREE.Object3D;
  if (file.name.toLowerCase().endsWith('.stl')) {
-  const geometry=toCreasedNormals(new STLLoader().parse(bytes),Math.PI/4);object=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial());
+  const geometry=new STLLoader().parse(bytes);
+  // Creased-normal merging builds a large position hash map; skip it for very large
+  // meshes so 50 MB uploads stay stable in memory. Flat STL normals render correctly.
+  const smooth=geometry.attributes.position.count<=450000?toCreasedNormals(geometry,Math.PI/4):geometry;
+  object=new THREE.Mesh(smooth,new THREE.MeshStandardMaterial());
  } else {
   object=new ThreeMFLoader().parse(bytes);
   // 3MF carries triangle positions; Three's loader uses flat-shaded source materials
@@ -59,7 +64,7 @@ export async function parseModel(file:File):Promise<{object:THREE.Object3D;stats
    if(!(node instanceof THREE.Mesh)||node.geometry.getAttribute('normal'))return;
    const source:THREE.BufferGeometry=node.geometry;
    let geometry=prepared.get(source);
-   if(!geometry){const next=source.index?source.toNonIndexed():source;next.computeVertexNormals();prepared.set(source,next);geometry=next}
+    if(!geometry){const small=source.attributes.position.count<=450000;const next=source.index&&small?source.toNonIndexed():source;next.computeVertexNormals();prepared.set(source,next);geometry=next}
    node.geometry=geometry;
   });
   prepared.forEach((geometry,source)=>{if(geometry!==source)source.dispose()});
@@ -67,21 +72,17 @@ export async function parseModel(file:File):Promise<{object:THREE.Object3D;stats
  try {
   object.updateMatrixWorld(true);
   const dimensions=new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3()).toArray() as [number,number,number];
-  let volume=0, triangles=0;
-  const a=new THREE.Vector3(), b=new THREE.Vector3(), c=new THREE.Vector3();
+  // validateModel already measured native volume and bounds from the same bytes,
+  // so the browser only counts triangles and reads the loaded bounds (O(n) once,
+  // no per-triangle work on the main thread for large models).
+  let triangles=0;
   object.traverse(node=>{
    if (!(node instanceof THREE.Mesh)) return;
    const geometry=node.geometry, positions=geometry.attributes.position, index=geometry.index;
-   const count=index?index.count:positions.count;triangles+=count/3;
-   if (triangles>1000000) throw new Error('This model is too detailed. Export fewer than 1 million triangles.');
-   for (let i=0;i<count;i+=3) {
-    a.fromBufferAttribute(positions,index?index.getX(i):i).applyMatrix4(node.matrixWorld);
-    b.fromBufferAttribute(positions,index?index.getX(i+1):i+1).applyMatrix4(node.matrixWorld);
-    c.fromBufferAttribute(positions,index?index.getX(i+2):i+2).applyMatrix4(node.matrixWorld);
-    volume+=a.dot(b.cross(c))/6;
-   }
+   triangles+=(index?index.count:positions.count)/3;
+   if (triangles>MAX_TRIANGLES) throw new Error('This model is too detailed. Export fewer than 2 million triangles.');
   });
-  if (!triangles||dimensions.some(d=>!Number.isFinite(d)||d<=0)||!Number.isFinite(volume)) throw new Error('We could not read this model. Export a valid STL or 3MF and try again.');
+  if (!triangles||dimensions.some(d=>!Number.isFinite(d)||d<=0)) throw new Error('We could not read this model. Export a valid STL or 3MF and try again.');
   // Validation resolves 3MF units and assembly transforms in native millimetres.
   return {object,stats:validated};
  } catch (error) {disposeObject(object);throw error;}

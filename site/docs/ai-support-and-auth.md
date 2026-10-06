@@ -91,7 +91,7 @@ The system prompt equips the model with complete local studio knowledge:
   - Pickup only: arrange a meeting at Alhussan International School or Al Huwaylat directly with studio staff.
   - Payment: full in-person payment received and verified by staff before production. No gateway or wallet checkout.
 - **Tracking**: Order IDs `JBL-XXXXX` trackable at `/track` with phone number.
-- **File Uploads**: STL and 3MF up to 15 MB supported with geometry validation on `/lab`.
+- **File Uploads**: STL and single-part 3MF up to 50 MB supported with geometry validation on `/lab`.
 
 ### C. Robust Knowledge-Base Fallback (`lib/support-fallback.ts`)
 When no API key is provided, or in case of provider network timeouts:

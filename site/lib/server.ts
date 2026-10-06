@@ -69,6 +69,58 @@ function tursoDb() {
   };
 }
 let pgSql: Sql | null = null;
+let pgLastActivity = 0;
+// postgres.js has no per-query deadline. Supabase's pooler can leave a socket
+// stalled (or a serverless instance can wake holding a socket the pooler already
+// dropped), which previously hung the invocation until Vercel killed it at 300s.
+// Bound every statement and recycle the connection on any stall.
+const PG_QUERY_TIMEOUT_MS = 10_000;
+const PG_PREFLIGHT_TIMEOUT_MS = 4_000;
+const PG_STALE_AFTER_MS = 15_000;
+class PgTimeoutError extends Error {}
+function recyclePg(reason?: unknown) {
+  const client = pgSql;
+  pgSql = null;
+  pgLastActivity = 0;
+  if (!client) return;
+  if (reason) console.error('Forma3D pg recycle:', reason instanceof Error ? reason.message : reason);
+  try {
+    // Never wait on a possibly-stuck socket: ending the client rejects anything
+    // still queued on it, and the next request dials a fresh connection.
+    void client.end({timeout: 1});
+  } catch {}
+}
+function pgClient(): Sql | undefined {
+  const url = typeof process !== 'undefined' ? process.env.SUPABASE_DB_URL : undefined;
+  if (!url) return undefined;
+  if (!pgSql) {
+    try {
+      // Transaction-pooler friendly: no prepared statements, tiny pool for serverless.
+      // max_lifetime/keep_alive cycle sockets so they cannot rot indefinitely.
+      pgSql = postgres(url, {prepare: false, max: 1, idle_timeout: 5, max_lifetime: 60 * 10, connect_timeout: 10, keep_alive: 30});
+      pgLastActivity = 0;
+    } catch { return undefined; }
+  }
+  return pgSql;
+}
+function withPgTimeout<T>(pending: PromiseLike<T> & {cancel?: (() => void) | undefined}, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      try { pending.cancel?.(); } catch {}
+      reject(new PgTimeoutError('The studio database did not answer in time.'));
+    }, timeoutMs);
+  });
+  return Promise.race([pending, expired]).finally(() => { if (timer) clearTimeout(timer); });
+}
+// Connection-level failures mean the statement never ran, so they are safe to
+// report as "try again" instead of surfacing raw driver errors.
+function isPgConnectionError(error: unknown): boolean {
+  const code = (error as {code?: unknown} | null)?.code;
+  if (typeof code === 'string' && /^(08\d{3}|57P0[123]|CONNECT_TIMEOUT|ECONNRESET|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ENOTFOUND|EPIPE|ETIMEDOUT)$/.test(code)) return true;
+  const message = error instanceof Error ? error.message : '';
+  return /connection (terminated|closed|refused)|socket hang ?up|connection timeout/i.test(message);
+}
 // Translate SQLite-flavoured statements to Postgres: ? -> $n and json_extract -> ->>.
 function toPg(sql: string): string {
   let out = sql.replace(/json_extract\(([^,()]+),\s*'\$\.([^']+)'\)\s*=\s*1/g, "($1::jsonb->>'$2')::boolean = true");
@@ -81,19 +133,37 @@ function toPg(sql: string): string {
   return out;
 }
 function pgDb() {
-  const url = typeof process !== 'undefined' ? process.env.SUPABASE_DB_URL : undefined;
-  if (!url) return undefined;
-  try {
-    // Transaction-pooler friendly: no prepared statements, tiny pool for serverless.
-    pgSql ??= postgres(url, {prepare: false, max: 1, idle_timeout: 5, connect_timeout: 10});
-  } catch { return undefined; }
-  const sql = pgSql;
+  if (typeof process === 'undefined' || !process.env.SUPABASE_DB_URL) return undefined;
   // postgres.unsafe resolves to the row array; write statements also expose a
   // numeric `count`, which the shim maps onto the D1 `meta.changes` field.
   type PgRows = Array<Record<string, unknown>> & {count?: number};
   const runQuery = async (q: string, params: SqlParam[]): Promise<PgRows> => {
-    const rows = await sql.unsafe(toPg(q), params);
-    return rows as unknown as PgRows;
+    let client = pgClient();
+    if (!client) throw new ApiError('The studio is temporarily unavailable. Please try again.', 503);
+    // A frozen serverless instance can wake with a socket the pooler already
+    // dropped; probe it first so stale connections are recycled instead of hanging.
+    if (pgLastActivity && Date.now() - pgLastActivity > PG_STALE_AFTER_MS) {
+      try {
+        await withPgTimeout(client.unsafe('SELECT 1'), PG_PREFLIGHT_TIMEOUT_MS);
+      } catch (error) {
+        recyclePg(error);
+        client = pgClient();
+        if (!client) throw new ApiError('The studio is temporarily unavailable. Please try again.', 503);
+      }
+    }
+    try {
+      const rows = await withPgTimeout(client.unsafe(toPg(q), params), PG_QUERY_TIMEOUT_MS);
+      pgLastActivity = Date.now();
+      return rows as unknown as PgRows;
+    } catch (error) {
+      // Keep a poisoned connection out of the cache or every later request
+      // queues behind the same dead socket.
+      if (error instanceof PgTimeoutError || isPgConnectionError(error)) {
+        recyclePg(error);
+        throw new ApiError('The studio database is temporarily busy. Please try again in a moment.', 503);
+      }
+      throw error;
+    }
   };
   const mkBound = (q: string, params: SqlParam[]): BoundStatement => ({
     _q: q, _params: params,
@@ -230,4 +300,4 @@ export async function getCatalog(){try{const rows=await db().prepare('SELECT id,
   }
 }
 
-export async function boundedForm(request:Request,maxBytes:number){const reader=request.body?.getReader();if(!reader)throw new ApiError('Choose a file.');let size=0;const chunks:Uint8Array[]=[];while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxBytes){await reader.cancel();throw new ApiError('Choose a model smaller than 15 MB.',413)}chunks.push(value);}const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}const safe=new Request(request.url,{method:'POST',headers:{'Content-Type':request.headers.get('content-type')??''},body:bytes});return safe.formData();}
+export async function boundedForm(request:Request,maxBytes:number){const reader=request.body?.getReader();if(!reader)throw new ApiError('Choose a file.');let size=0;const chunks:Uint8Array[]=[];while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxBytes){await reader.cancel();throw new ApiError('Choose a file smaller than '+Math.max(1,Math.floor(maxBytes/(1024*1024)))+' MB.',413)}chunks.push(value);}const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}const safe=new Request(request.url,{method:'POST',headers:{'Content-Type':request.headers.get('content-type')??''},body:bytes});return safe.formData();}

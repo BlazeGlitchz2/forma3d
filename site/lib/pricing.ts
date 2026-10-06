@@ -31,8 +31,10 @@ export function calculateQuote(config:PrintConfig,material:Material,stats:Stats,
   const unitPrint=product?product.price*Math.pow(c.size/100,3)*(material.id==='petg'?1.18:1)*quality.multiplier*({light:.95,everyday:1,strong:1.15,solid:1.45}[c.strength as 'light']??1):breakdown.material+breakdown.machine+breakdown.support;
   const discountRate=quantityDiscountRate(c.quantity);
   const gross=unitPrint*c.quantity;
-  const discount=round2(gross*discountRate);
-  const print=Math.max(pricingPolicy.minimum,round2(gross-discount));
+  const grossFloor=Math.max(pricingPolicy.minimum,round2(gross));
+  const print=Math.max(pricingPolicy.minimum,round2(gross*(1-discountRate)));
+  // Report only the saving actually reflected in the total, so a minimum-price line never shows a phantom discount.
+  const discount=round2(grossFloor-print);
   const total=round2(print+breakdown.finishing*c.quantity+breakdown.delivery);
   return{total,grams:Math.round(grams*c.quantity*10)/10,minutes:Math.round(minutes*c.quantity),source:sliced?'slicer':'estimate',breakdown:{...breakdown,discount,discountRate},config:c,dimensions};
 }

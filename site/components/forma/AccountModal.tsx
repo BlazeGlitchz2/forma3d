@@ -94,6 +94,14 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
     const known = statusLabels[status.toLowerCase()];
     return known ? t(known[0], known[1]) : status.replaceAll('_', ' ');
   };
+  // Never leave the form spinning if a request is stuck at the network layer.
+  const requestTimeout = () => AbortSignal.timeout(20_000);
+  const authErrorMessage = (err: unknown, fallback: string) => {
+    if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
+      return t('The studio is taking too long to respond. Please try again.', 'يستغرق الاستوديو وقتًا أطول من المعتاد. حاول مرة أخرى.');
+    }
+    return err instanceof Error ? err.message : fallback;
+  };
 
   // Clear credentials and transient errors whenever the dialog closes.
   const handleOpenChange = (nextOpen: boolean) => {
@@ -186,6 +194,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
+        signal: requestTimeout(),
       });
       const data = (await res.json()) as { error?: string; user?: UserProfile };
       if (!res.ok) throw new Error(data.error ?? 'Invalid email or password.');
@@ -217,7 +226,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
         handleOpenChange(false);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('Sign in failed. Please try again.', 'تعذر تسجيل الدخول. حاول مرة أخرى.');
+      const message = authErrorMessage(err, t('Sign in failed. Please try again.', 'تعذر تسجيل الدخول. حاول مرة أخرى.'));
       setAuthError(message);
       toast.error(message);
     } finally {
@@ -240,6 +249,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
           phone: regPhone.trim(),
           area: area.trim(),
         }),
+        signal: requestTimeout(),
       });
       const data = (await res.json()) as { error?: string; user?: UserProfile };
       if (!res.ok) throw new Error(data.error ?? 'Registration failed.');
@@ -253,7 +263,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
       );
 
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('Registration failed. Please try again.', 'تعذر إنشاء الحساب. حاول مرة أخرى.');
+      const message = authErrorMessage(err, t('Registration failed. Please try again.', 'تعذر إنشاء الحساب. حاول مرة أخرى.'));
       setAuthError(message);
       toast.error(message);
     } finally {

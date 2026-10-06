@@ -18,7 +18,7 @@ const SYSTEM_PROMPT = `You are the AI Customer Support Specialist and 3D Printin
 STUDIO DETAILS & CAPABILITIES:
 - Machine & Hardware: Creality Ender-3 V3 SE, precisely calibrated for tight tolerances and clean layer lines.
 - Maximum Build Volume: 220 × 220 × 250 mm (Width × Depth × Height). Models exceeding this can be scaled down or segmented into interlocking components.
-- Supported File Formats: STL and 3MF up to 15 MB. Customers can upload directly to the Lab page (/lab) for instant geometry verification and live quoting.
+- Supported File Formats: STL and single-part 3MF up to 50 MB. Customers can upload directly to the Lab page (/lab) for instant geometry verification and live quoting.
 - Filament Material: Premium PLA (Polylactic Acid) - rigid, dimensionally accurate, eco-friendly, and odorless.
  - Available PLA Colors (8 choices):
   1. Cloud White (الأبيض السحابي)

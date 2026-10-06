@@ -92,7 +92,7 @@ test('Support Fallback provides rich bilingual knowledge base for Forma3D', () =
   const fileEn = getFallbackSupportReply('Can I upload STL or 3MF files?', 'en');
   assert.match(fileEn.text, /STL/);
   assert.match(fileEn.text, /3MF/);
-  assert.match(fileEn.text, /15 MB/i);
+  assert.match(fileEn.text, /50 MB/i);
 
   // Human / Ticket
   const ticketEn = getFallbackSupportReply('I want to speak with a human or submit a ticket', 'en');
