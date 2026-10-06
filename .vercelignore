@@ -15,3 +15,12 @@ backup_before_continuation
 *.txt
 .DS_Store
 .git
+# Never upload local secrets with CLI deploys. (.env.local is ignored by
+# default, but plain .env and .dev.vars are not.)
+.env
+.env.local
+.env.*.local
+site/.env
+site/.env.local
+site/.env.*.local
+site/.dev.vars

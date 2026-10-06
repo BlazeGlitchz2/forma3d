@@ -196,13 +196,14 @@ function pgDb() {
   };
 }
 function blobBucket() {
-  if (typeof process === 'undefined' || !process.env.BLOB_READ_WRITE_TOKEN) return undefined;
+  const token: string | undefined = (typeof process !== 'undefined' ? process.env.BLOB_READ_WRITE_TOKEN : undefined) ?? (cfEnv?.BLOB_READ_WRITE_TOKEN as string | undefined);
+  if (!token) return undefined;
   return {
     // Returns nothing; callers persist the pathname key. Reads go through the
     // token-authenticated server SDK so private stores work (no public URLs).
     async put(key: string, body: Uint8Array, opts?: {httpMetadata?: {contentType?: string}}) {
       // Buffer is a Uint8Array subclass; the cast only satisfies @vercel/blob's PutBody union.
-      await blobPut(key, body as unknown as Buffer, {access: 'private', contentType: opts?.httpMetadata?.contentType, addRandomSuffix: false});
+      await blobPut(key, body as unknown as Buffer, {access: 'private', contentType: opts?.httpMetadata?.contentType, addRandomSuffix: false, token});
       return {};
     },
     async get(key: string) {
@@ -212,13 +213,13 @@ function blobBucket() {
         return {body: res.body, arrayBuffer: () => res.arrayBuffer()};
       }
       try {
-        const b = await blobGet(key, {access: 'private'});
+        const b = await blobGet(key, {access: 'private', token});
         if (!b || !b.stream) return null;
         return {body: b.stream as ReadableStream, arrayBuffer: () => new Response(b.stream).arrayBuffer()};
       } catch { return null; }
     },
     async delete(key: string) {
-      try { await blobDel(key); } catch {}
+      try { await blobDel(key, {token}); } catch {}
     },
   };
 }
@@ -231,7 +232,7 @@ export const runtime=new Proxy({} as Record<string, unknown>, {
     if (typeof process !== 'undefined' && process.env && process.env[prop]) return process.env[prop];
     return undefined;
   }
-}) as {DB:D1Database;BUCKET:R2Bucket;STUDIO_ADMIN_EMAIL?:string;SLICER_URL?:string;SLICER_TOKEN?:string;SLICER_PROFILE_REVISION?:string;LOCAL_ADMIN_EMAIL?:string};
+}) as {DB:D1Database;BUCKET:R2Bucket;STUDIO_ADMIN_EMAIL?:string;SLICER_URL?:string;SLICER_TOKEN?:string;SLICER_PROFILE_REVISION?:string;LOCAL_ADMIN_EMAIL?:string;BLOB_READ_WRITE_TOKEN?:string};
 export function db(){const d=runtime.DB;if(!d)throw new Error('The studio is temporarily unavailable. Please try again.');return d}
 export function digest(s:string){return createHash('sha256').update(s).digest('hex')}
 export function secret(){return randomBytes(32).toString('hex')}
@@ -286,10 +287,10 @@ export async function rateLimit(scope:string,max:number,seconds:number){
     const id=digest(scope+ip);const now=Date.now();
     const e=memLimits.get(id);
     if(!e||e.reset<now)memLimits.set(id,{count:1,reset:now+seconds*1000});
-    else{e.count++;if(e.count>max)throw new ApiError('A few too many requests. Try again in a minute.',429);}
+    else{e.count++;if(e.count>max)throw new ApiError('Too many attempts. Please wait a little and try again.',429);}
     return;
   }
-  const h=await headers();const ip=h.get('cf-connecting-ip')??h.get('x-forwarded-for')??'local';const period=Math.floor(Date.now()/1000/seconds);const id=digest(scope+ip)+':'+period;const row=await db().prepare('INSERT INTO limits (id,count,expires) VALUES (?,1,?) ON CONFLICT(id) DO UPDATE SET count=count+1 RETURNING limits.count').bind(id,(period+1)*seconds).first<{count:number}>();if((row?.count??0)>max)throw new ApiError('A few too many requests. Try again in a minute.',429);if(period%10===0)await db().prepare('DELETE FROM limits WHERE expires < ?').bind(Math.floor(Date.now()/1000)).run()}
+  const h=await headers();const ip=h.get('cf-connecting-ip')??h.get('x-forwarded-for')??'local';const period=Math.floor(Date.now()/1000/seconds);const id=digest(scope+ip)+':'+period;const row=await db().prepare('INSERT INTO limits (id,count,expires) VALUES (?,1,?) ON CONFLICT(id) DO UPDATE SET count=count+1 RETURNING limits.count').bind(id,(period+1)*seconds).first<{count:number}>();if((row?.count??0)>max)throw new ApiError('Too many attempts. Please wait a little and try again.',429);if(period%10===0)await db().prepare('DELETE FROM limits WHERE expires < ?').bind(Math.floor(Date.now()/1000)).run()}
 const memLimits=new Map<string,{count:number;reset:number}>();
 export async function getCatalog(){try{const rows=await db().prepare('SELECT id,data,type FROM catalog').all<{id:string;data:string;type:string}>();const saved=new Map(rows.results.map(r=>[r.id,JSON.parse(r.data)]));const productRows:Product[]=products.map(p=>saved.get('product:'+p.id)??p);for(const r of rows.results)if(r.type==='product'&&!products.some(p=>'product:'+p.id===r.id))productRows.push(JSON.parse(r.data));const materialRows:Material[]=materials.map(m=>{const s=saved.get('material:'+m.id)??m;if(m.id==='pla'){for(const c of ['transparent','yellow','green'])if(!s.colors.includes(c))s.colors=[...s.colors,c];}return s;});for(const r of rows.results)if(r.type==='material'&&!materials.some(m=>'material:'+m.id===r.id))materialRows.push(JSON.parse(r.data));const categories=saved.get('categories')??['All','Desk setup','Room','Useful','Gifts','Miniatures'];const normalized=productRows.map(normalizeCatalogProduct);const modelIds=[...new Set(normalized.flatMap(p=>p.modelId?[p.modelId]:[]))];const modelDimensions=new Map<string,Product['dimensions']>();for(let offset=0;offset<modelIds.length;offset+=80){const group=modelIds.slice(offset,offset+80);const modelRows=await db().prepare('SELECT id,stats FROM uploads WHERE id IN ('+group.map(()=>'?').join(',')+')').bind(...group).all<{id:string;stats:string}>();for(const row of modelRows.results)modelDimensions.set(row.id,JSON.parse(row.stats).dimensions)}return{products:normalized.map(p=>p.modelId&&modelDimensions.has(p.modelId)?{...p,dimensions:modelDimensions.get(p.modelId)!}:p),materials:materialRows.map(normalizeCatalogMaterial),categories,profiles:(saved.get('profiles')??qualityOptions) as typeof qualityOptions,slicingAvailable:!!runtime.SLICER_URL};
   }catch(e){
