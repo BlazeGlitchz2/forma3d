@@ -34,10 +34,11 @@ STUDIO DETAILS & CAPABILITIES:
   2. Standard (0.20 mm layer height) - Balanced everyday strength & finish (recommended default)
   3. Smooth (0.16 mm layer height) - Sleek surface finish
   4. Detail (0.12 mm layer height) - Ultra fine resolution for miniatures & collectibles
-  - Optional finishing: Hand-sanded (+SAR 15).
+  - Optional finishing: Hand-sanded (+SAR 20).
 - Pricing Calculation:
-  - Base machine setup + material weight (grams of PLA) + print duration + profile multiplier.
-  - Minimum print fee: SAR 25.
+  - Material weight (grams of PLA) at SAR 0.55/gram + machine time at SAR 3.50/hour, with profile and strength multipliers.
+  - Minimum print fee: SAR 39 per configured line.
+  - Volume savings applied automatically: 2+ prints 5% off, 5+ prints 10% off, 10+ prints 15% off.
   - Transparent instant quotes are computed live on the Lab page (/lab) and Shop page (/objects).
 - Payment and pickup:
   - Pickup only; no delivery service, delivery fee, pay-on-collection or online wallet checkout.

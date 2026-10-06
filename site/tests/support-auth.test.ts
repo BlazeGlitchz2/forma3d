@@ -39,13 +39,13 @@ test('Support Fallback provides rich bilingual knowledge base for Forma3D', () =
 
   // Pricing
   const priceEn = getFallbackSupportReply('How much does it cost to print?', 'en');
-  assert.match(priceEn.text, /SAR 25/);
+  assert.match(priceEn.text, /SAR 39/);
   assert.match(priceEn.text, /before printing/i);
   assert.match(priceEn.text, /Free/i); // pickup
 
   const priceAr = getFallbackSupportReply('كم سعر وتكلفة الطباعة والتوصيل؟', 'ar');
-  assert.match(priceAr.text, /25 ريال/);
-  assert.match(priceAr.text, /15 ريال/);
+  assert.match(priceAr.text, /39 ريال/);
+  assert.match(priceAr.text, /20 ريال/);
   assert.match(priceAr.text, /مجاني/);
 
   // Materials & Colors

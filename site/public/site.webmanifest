@@ -1,0 +1,22 @@
+{
+  "name": "Forma3D — Material World",
+  "short_name": "Forma3D",
+  "description": "A digital material lab. Explore printed forms, upload your STL or 3MF, and make a physical object in Jubail.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#efeee8",
+  "theme_color": "#efeee8",
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

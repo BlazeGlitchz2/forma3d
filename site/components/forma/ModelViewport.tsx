@@ -94,6 +94,13 @@ function materialResponse(material:string) {
  return {roughness:.57,clearcoat:.01,transmission:0,ior:1.46};
 }
 const layerHeights:Record<string,number>={fast:.28,standard:.2,smooth:.16,detail:.12};
+const UP=new THREE.Vector3(0,1,0);
+let coarsePointerQuery:MediaQueryList|null=null;
+function isCoarsePointer(){
+ if(typeof window==='undefined')return false;
+ coarsePointerQuery??=window.matchMedia('(pointer: coarse)');
+ return coarsePointerQuery.matches||window.innerWidth<820;
+}
 
 function ObjectSilhouette({kind,color,uploaded}:{kind:ProductKind;color:string;uploaded:boolean}) {
  const id=useId().replaceAll(':','');
@@ -136,13 +143,14 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
    if(unmounted||unsupported||!visible||cleanupScene)return;
    if(contextOwners.size>=6){waitingViewports.set(owner,initialize);return;}
    contextOwners.add(owner);
-   let renderer:THREE.WebGLRenderer;
-   try{renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:compact?'low-power':'default'});}
-   catch{unsupported=true;releaseContext(owner);queueMicrotask(()=>{if(!unmounted)setFailed(true);});return;}
-   let disposed=false, frame=0, expensiveRenders=0, interaction=false, revealStart:number|null=null, settleStart:number|null=null, root:THREE.Group|null=null;
-   const abort=new AbortController(), hardware=navigator as Navigator&{deviceMemory?:number;connection?:{saveData?:boolean}};
+   const abort=new AbortController(), hardware=navigator as Navigator&{deviceMemory?:number;connection?:{saveData?:boolean}}, coarsePointer=isCoarsePointer();
    let tier:Tier=hardware.connection?.saveData||(hardware.deviceMemory!==undefined&&hardware.deviceMemory<=4)||navigator.hardwareConcurrency<=4?'low':compact||window.innerWidth<900?'medium':'high';
+   let renderer:THREE.WebGLRenderer;
+   try{renderer=new THREE.WebGLRenderer({alpha:true,antialias:tier!=='low',powerPreference:compact||tier==='low'?'low-power':'default'});}
+   catch{unsupported=true;releaseContext(owner);queueMicrotask(()=>{if(!unmounted)setFailed(true);});return;}
+   let disposed=false, frame=0, expensiveRenders=0, interaction=false, revealStart:number|null=null, settleStart:number|null=null, root:THREE.Group|null=null, interactionRestore:ReturnType<typeof setTimeout>|undefined, pointerFrame=0, contextLosses=0, lastDpr=window.devicePixelRatio||1;
    const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera(studio?27:31,1,.05,150);
+   const boundsScratch=new THREE.Box3(), vectorScratch=new THREE.Vector3(), apiOffset=new THREE.Vector3();
    const cameraDirection=new THREE.Vector3(2.4,kind==='tray'?5:2.1,6.8).normalize(), start=new THREE.Vector3(), target=new THREE.Vector3();
    const controls=new OrbitControls(camera,renderer.domElement);
    controls.enablePan=false;controls.enableDamping=false;controls.maxPolarAngle=Math.PI*.85;controls.mouseButtons.RIGHT=THREE.MOUSE.ROTATE;
@@ -215,12 +223,16 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
    const contact=new THREE.Mesh(new THREE.PlaneGeometry(10,10),new THREE.ShadowMaterial({opacity:.024}));contact.rotation.x=-Math.PI/2;contact.receiveShadow=true;scene.add(contact);
    const baseRotation=new THREE.Euler(studio?.025:0,-.35,cinematic?-.065:0), pointer=new THREE.Vector2(), pointerTarget=new THREE.Vector2();
    let normalizedHeight=3.2, physicalHeight=160, maxSide=3.2, cameraFitted=false;
+   function applyPixelRatio(){
+    const cap=Math.min(window.devicePixelRatio||1,tier==='high'?(coarsePointer?1.5:2):tier==='medium'?(coarsePointer?1.25:1.5):1);
+    const ratio=interaction?Math.max(.75,cap*.72):cap;
+    if(Math.abs(renderer.getPixelRatio()-ratio)>.001)renderer.setPixelRatio(ratio);
+   }
    function applyTier(){
-    element!.dataset.renderTier=tier.toUpperCase();renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,tier==='high'?1.85:tier==='medium'?1.4:1));
+    element!.dataset.renderTier=tier.toUpperCase();applyPixelRatio();
     renderer.shadowMap.enabled=tier!=='low';
     const shadowSize=tier==='high'?1024:512;
-    if(key.shadow.map&&key.shadow.mapSize.x!==shadowSize){key.shadow.map.dispose();key.shadow.map=null;}
-    key.shadow.mapSize.set(shadowSize,shadowSize);
+    if(key.shadow.mapSize.x!==shadowSize){key.shadow.mapSize.set(shadowSize,shadowSize);if(key.shadow.map){key.shadow.map.dispose();key.shadow.map=null;}}
    }
    function fitCamera(){
     if(!root)return;
@@ -250,14 +262,14 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
     }
    }
    function render(){
-    if(disposed||!visible)return;
+    if(disposed||!visible||document.visibilityState==='hidden')return;
     if(root)printAxis.value.set(0,1,0).applyQuaternion(root.quaternion);
     const began=performance.now();renderer.render(scene,camera);
     if(performance.now()-began>28&&tier!=='low'){
      expensiveRenders++;if(expensiveRenders>=3){tier=tier==='high'?'medium':'low';applyTier();expensiveRenders=0;resize();}
     }
    }
-   resumeScene=render;
+   resumeScene=()=>{render();if(revealStart!==null||settleStart!==null||(cinematic&&pointer.distanceTo(pointerTarget)>.001))requestMotion();};
    function tick(now:number){
     frame=0;if(disposed||!root)return;let keepGoing=false;
     if(revealStart!==null){
@@ -271,7 +283,7 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
     if(cinematic&&!reducedMotion.matches&&!interaction){pointer.lerp(pointerTarget,.13);root.rotation.x=baseRotation.x+pointer.y*.026;if(settleStart===null)root.rotation.y=baseRotation.y+pointer.x*.055;if(pointer.distanceTo(pointerTarget)>.001)keepGoing=true;}
     render();if(keepGoing)frame=requestAnimationFrame(tick);
    }
-   function requestMotion(){if(!frame&&!disposed)frame=requestAnimationFrame(tick);}
+   function requestMotion(){if(!frame&&!disposed&&document.visibilityState!=='hidden')frame=requestAnimationFrame(tick);}
    function updateAppearance(){
     const config=configRef.current, response=materialResponse(config.material), finish=config.quality==='fast'?.06:config.quality==='detail'?-.035:config.quality==='smooth'?-.02:0;
     surface.color.set(config.color);surface.roughness=response.roughness+finish;
@@ -281,8 +293,8 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
     surface.transparent=revealing||response.transmission>0;surface.opacity=revealing?.56:1;surface.wireframe=revealing||config.wireframe;if(changedTransmission)surface.needsUpdate=true;
     printFrequency.value=Math.PI*2*physicalHeight/normalizedHeight/(layerHeights[config.quality]??.2);printRelief.value=config.quality==='fast'?.000043:config.quality==='detail'?.000019:.000026;
     if(root){
-     const scale=THREE.MathUtils.clamp(Math.pow(Math.max(config.size,.05),.45),.4,1.32), sizeChanged=Math.abs(root.scale.x-scale)>.0001;root.scale.setScalar(scale);root.updateMatrixWorld(true);
-     const bottom=new THREE.Box3().setFromObject(root).min.y;floor.position.y=bottom-.025;contact.position.y=bottom-.035;floor.scale.set(maxSide/3.2,maxSide/3.2,1);
+      const scale=THREE.MathUtils.clamp(Math.pow(Math.max(config.size,.05),.45),.4,1.32), sizeChanged=Math.abs(root.scale.x-scale)>.0001;root.scale.setScalar(scale);root.updateMatrixWorld(true);
+      const bottom=boundsScratch.setFromObject(root).min.y;floor.position.y=bottom-.025;contact.position.y=bottom-.035;floor.scale.set(maxSide/3.2,maxSide/3.2,1);
      if(sizeChanged)ensureFraming();
     }
     render();
@@ -290,36 +302,76 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
    updateRef.current=updateAppearance;
    function resize(){
     const {width,height}=element!.getBoundingClientRect();if(width<=0||height<=0)return;
-    renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();fitCamera();render();
+    renderer.setSize(width,height,false);
+    const aspect=width/height,aspectShift=Math.abs(camera.aspect-aspect);
+    camera.aspect=aspect;camera.updateProjectionMatrix();applyPixelRatio();
+    // Refit only on first layout or a large aspect change (for example rotation).
+    // Small viewport shifts from mobile browser chrome must not snap the view.
+    if(!cameraFitted||aspectShift>.4)fitCamera();else ensureFraming();
+    render();
    }
    applyTier();const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(element!);
-   const controlsChanged=()=>render(), controlsStarted=()=>{interaction=true;pointerTarget.set(0,0);}, controlsEnded=()=>{interaction=false;};
+   let dprQuery:MediaQueryList|null=null;
+   const onDprChange=()=>{applyTier();resize();watchDpr();};
+   function watchDpr(){
+    if(dprQuery)dprQuery.removeEventListener('change',onDprChange);
+    dprQuery=window.matchMedia(`(resolution: ${window.devicePixelRatio||1}dppx)`);
+    dprQuery.addEventListener('change',onDprChange);
+   }
+   const onOrientationChange=()=>{cameraFitted=false;resize();};
+   const onWindowResize=()=>{const dpr=window.devicePixelRatio||1;if(Math.abs(dpr-lastDpr)>.001){lastDpr=dpr;applyTier();}resize();};
+   window.addEventListener('resize',onWindowResize);window.addEventListener('orientationchange',onOrientationChange);watchDpr();
+   const controlsChanged=()=>render(), controlsStarted=()=>{interaction=true;if(interactionRestore)clearTimeout(interactionRestore);applyPixelRatio();pointerTarget.set(0,0);}, controlsEnded=()=>{interaction=false;if(interactionRestore)clearTimeout(interactionRestore);interactionRestore=setTimeout(()=>{interactionRestore=undefined;applyPixelRatio();render();},180);};
    controls.addEventListener('change',controlsChanged);controls.addEventListener('start',controlsStarted);controls.addEventListener('end',controlsEnded);
    const pointerMoved=(event:PointerEvent)=>{
     if(!cinematic||reducedMotion.matches||event.pointerType==='touch'||interaction)return;
-    const rect=element!.getBoundingClientRect();pointerTarget.set((event.clientX-rect.left)/rect.width*2-1,(event.clientY-rect.top)/rect.height*2-1);requestMotion();
-   }, pointerLeft=()=>{pointerTarget.set(0,0);requestMotion();};
+    if(pointerFrame)return;
+    pointerFrame=requestAnimationFrame(()=>{
+     pointerFrame=0;if(disposed||!cinematic||reducedMotion.matches||interaction)return;
+     const rect=element!.getBoundingClientRect();pointerTarget.set((event.clientX-rect.left)/rect.width*2-1,(event.clientY-rect.top)/rect.height*2-1);requestMotion();
+    });
+   }, pointerLeft=()=>{if(pointerFrame){cancelAnimationFrame(pointerFrame);pointerFrame=0;}pointerTarget.set(0,0);requestMotion();};
    element!.addEventListener('pointermove',pointerMoved);element!.addEventListener('pointerleave',pointerLeft);
+   const onVisibility=()=>{
+    if(document.visibilityState==='hidden'){cancelAnimationFrame(frame);frame=0;if(pointerFrame){cancelAnimationFrame(pointerFrame);pointerFrame=0;}}
+    else{applyPixelRatio();resumeScene?.();}
+   };
+   const onWindowBlur=()=>{cancelAnimationFrame(frame);frame=0;if(pointerFrame){cancelAnimationFrame(pointerFrame);pointerFrame=0;}};
+   const onWindowFocus=()=>{applyPixelRatio();resumeScene?.();};
+   document.addEventListener('visibilitychange',onVisibility);
+   window.addEventListener('blur',onWindowBlur);window.addEventListener('focus',onWindowFocus);
    const motionChanged=()=>{if(!reducedMotion.matches)return;pointer.set(0,0);pointerTarget.set(0,0);revealStart=null;settleStart=null;if(root)root.rotation.copy(baseRotation);updateAppearance();};
    reducedMotion.addEventListener('change',motionChanged);
    const contextLost=(event:Event)=>{
-    event.preventDefault();unsupported=true;
-    if(!unmounted){setFailed(true);setReady(false);queueMicrotask(()=>{cleanupScene?.();cleanupScene=null;});}
+    event.preventDefault();cancelAnimationFrame(frame);frame=0;if(pointerFrame){cancelAnimationFrame(pointerFrame);pointerFrame=0;}
+    contextLosses++;
+    // Let the browser restore once or twice. A third loss means the GPU is
+    // unusable, so release the context and keep the static fallback instead.
+    if(contextLosses>=3){
+     unsupported=true;
+     if(!unmounted){setFailed(true);setReady(false);queueMicrotask(()=>{cleanupScene?.();cleanupScene=null;});}
+     return;
+    }
+    if(!unmounted){setFailed(true);setReady(false);}
    };
    const contextRestored=()=>{
-    unsupported=false;
-    if(!unmounted){setFailed(false);requestMotion();}
+    if(unsupported||disposed)return;
+    contextLosses=0;applyTier();resize();updateAppearance();
+    if(!unmounted)setFailed(false);
    };
    renderer.domElement.addEventListener('webglcontextlost',contextLost);
    renderer.domElement.addEventListener('webglcontextrestored',contextRestored);
    api.current={
     reset:()=>{camera.position.copy(start);controls.target.copy(target);controls.update();ensureFraming();render();},
-    zoom:value=>{const offset=camera.position.clone().sub(controls.target), distance=THREE.MathUtils.clamp(offset.length()*value,controls.minDistance,controls.maxDistance);camera.position.copy(controls.target).add(offset.setLength(distance));controls.update();render();},
-    rotate:value=>{const offset=camera.position.clone().sub(controls.target);offset.applyAxisAngle(new THREE.Vector3(0,1,0),value);camera.position.copy(controls.target).add(offset);controls.update();render();},
-    view:value=>{const distance=start.distanceTo(target), direction=new THREE.Vector3(...(value==='top'?[.001,1,.001]:value==='side'?[1,.08,0]:[0,.08,1]) as [number,number,number]).normalize();camera.position.copy(target).addScaledVector(direction,distance);controls.update();ensureFraming();render();},
+    zoom:value=>{const offset=apiOffset.copy(camera.position).sub(controls.target), distance=THREE.MathUtils.clamp(offset.length()*value,controls.minDistance,controls.maxDistance);camera.position.copy(controls.target).add(offset.setLength(distance));controls.update();render();},
+    rotate:value=>{const offset=apiOffset.copy(camera.position).sub(controls.target);offset.applyAxisAngle(UP,value);camera.position.copy(controls.target).add(offset);controls.update();render();},
+    view:value=>{const distance=start.distanceTo(target);if(value==='top')vectorScratch.set(.001,1,.001);else if(value==='side')vectorScratch.set(1,.08,0);else vectorScratch.set(0,.08,1);camera.position.copy(target).addScaledVector(vectorScratch.normalize(),distance);controls.update();ensureFraming();render();},
    };
    cleanupScene=()=>{
-    disposed=true;abort.abort();cancelAnimationFrame(frame);resizeObserver.disconnect();
+    disposed=true;abort.abort();cancelAnimationFrame(frame);if(pointerFrame)cancelAnimationFrame(pointerFrame);if(interactionRestore)clearTimeout(interactionRestore);
+    if(dprQuery){dprQuery.removeEventListener('change',onDprChange);dprQuery=null;}
+    window.removeEventListener('resize',onWindowResize);window.removeEventListener('orientationchange',onOrientationChange);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('blur',onWindowBlur);window.removeEventListener('focus',onWindowFocus);
+    resizeObserver.disconnect();
     controls.removeEventListener('change',controlsChanged);controls.removeEventListener('start',controlsStarted);controls.removeEventListener('end',controlsEnded);controls.dispose();
     renderer.domElement.removeEventListener('pointerdown',onCanvasPointerDown);renderer.domElement.removeEventListener('pointermove',onCanvasPointerMove);renderer.domElement.removeEventListener('pointerup',onCanvasPointerEnd);renderer.domElement.removeEventListener('pointercancel',onCanvasPointerEnd);
     element!.removeEventListener('pointermove',pointerMoved);element!.removeEventListener('pointerleave',pointerLeft);reducedMotion.removeEventListener('change',motionChanged);renderer.domElement.removeEventListener('webglcontextlost',contextLost);renderer.domElement.removeEventListener('webglcontextrestored',contextRestored);
@@ -366,7 +418,7 @@ export default function ModelViewport({kind='vase',color='#f2f1ea',file,compact=
   return()=>{unmounted=true;observer.disconnect();clearTimeout(retireTimer);waitingViewports.delete(owner);cleanupScene?.();cleanupScene=null;releaseContext(owner);};
  },[kind,file,compact,modelUrl,studio,cinematic]);
 
-  return <div className={`model-viewport object-viewport ${compact?'compact':''} ${studio?'studio-viewer':''} ${cinematic?'cinematic-viewer':''} ${ready?'object-ready':''} ${failed?'object-unavailable':''}`} onDragStart={event=>event.preventDefault()}>
+  return <div className={`model-viewport object-viewport ${compact?'compact':''} ${studio?'studio-viewer':''} ${cinematic?'cinematic-viewer':''} ${ready?'object-ready':''} ${failed?'object-unavailable':''} ${!ready&&!failed?'model-loading':''}`} onDragStart={event=>event.preventDefault()}>
   <div className="canvas-host" ref={host} role="img" tabIndex={compact?undefined:0}
    aria-label={failed?(ar?'معاينة ثابتة للقطعة. العرض ثلاثي الأبعاد غير متاح.':'Static object illustration. 3D preview unavailable.'):compact?(ar?'معاينة القطعة':'Object preview'):(ar?'معاينة ثلاثية الأبعاد. اسحب أو استخدم الأسهم لعرض القطعة، وعلامتي زائد وناقص للتكبير.':'Interactive 3D preview. Drag or use arrow keys to view the object. Use plus and minus to zoom.')}
    onKeyDown={event=>{const actions:Record<string,()=>void>={ArrowLeft:()=>api.current?.rotate(-Math.PI/8),ArrowRight:()=>api.current?.rotate(Math.PI/8),ArrowUp:()=>api.current?.view('top'),ArrowDown:()=>api.current?.view('front'),'+':()=>api.current?.zoom(.85),'=':()=>api.current?.zoom(.85),'-':()=>api.current?.zoom(1.15),Home:()=>api.current?.reset()};if(actions[event.key]){event.preventDefault();actions[event.key]();}}}/>

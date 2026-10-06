@@ -23,6 +23,7 @@ interface SiteHeaderProps {
   onOpenAccount: () => void;
   onOpenMobileMenu: () => void;
   onToggleLanguage: () => void;
+  menuOpen?: boolean;
 }
 
 export function SiteHeader({
@@ -34,6 +35,7 @@ export function SiteHeader({
   onOpenAccount,
   onOpenMobileMenu,
   onToggleLanguage,
+  menuOpen = false,
 }: SiteHeaderProps) {
   const t = (en: string, arabic: string) => (ar ? arabic : en);
 
@@ -166,6 +168,8 @@ export function SiteHeader({
           onClick={onOpenMobileMenu}
           aria-label={t('Open navigation menu', 'فتح قائمة التنقل')}
           aria-haspopup="dialog"
+          aria-expanded={menuOpen}
+          aria-controls="mobile-nav-drawer"
         >
           <Menu size={22} />
         </button>

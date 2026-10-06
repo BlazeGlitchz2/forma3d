@@ -65,10 +65,38 @@ For an owner cost audit later:
 
 Printer lifetime, labour rate, power usage, failure reserve and target margin need actual business data or visibly marked assumptions. Manufacturer 350W rated power must not be substituted for measured average usage without explicitly using it as an upper-bound estimate.
 
+## Revised customer-price policy (2026-10-06)
+
+The 2026-10-02 recommendation above (SAR 0.50/g + SAR 3/hour, SAR 25 minimum, SAR 15 sanding) is superseded. A fresh benchmark and unit-economics review raised the policy to cover material, electricity, machine wear, handling labour, packaging and a failure reserve while staying in the Saudi budget tier (SAR 0.50–1.00/g) where Forma3D's customers buy. The customer-facing formula is now:
+
+`priceSAR = max(39, (grams * 0.55 + hours * 3.50) * quantityDiscount) + (20 if hand-sanded)`
+
+with volume savings of 5% at 2+ prints, 10% at 5+ and 15% at 10+, applied to the production subtotal before the SAR 39 minimum floor so a discounted small batch never prices below the minimum. Local pickup, files fixes, support removal and packaging stay free. The quote remains provisional and visibly labelled until the studio confirms the final total.
+
+Observed benchmark and cost inputs (retrieved 2026-10-06 unless noted):
+
+| Input | Observation | Source |
+|---|---|---|
+| Haraj Jeddah studio | SAR 0.50/g + SAR 3/hour + SAR 25 minimum (2026-10-02) | https://haraj.com.sa/11182770121/ |
+| Saudi print-service guide | PLA SAR 2–4/g average SAR 3; post-processing SAR 50–200 | https://ajhizah.com/3d-printing |
+| ARK3D (KSA) | Ender-3 V3 SE SAR 1,035 incl. VAT; CR-PLA SAR 87/kg | https://arkaki.com/shop/product-category/3d-printers/resin-3d-printers |
+| Thlath Abaad (Riyadh) | PLA SAR 55–65/kg; PETG from SAR 45/kg | https://thalathabaad.com/en |
+| Dubai FDM service | AED 0.13–0.30/g; AED 50–100/hour; AED 80 minimum | https://orbit3d.ae/pricing-3d-printing-services |
+| Hyperlab3D (global value) | $0.15/g PLA; $20 MOQ; $10 minimum part | https://www.hyperlab3d.com/ |
+| JLC3DP / PCBWay | from ~$0.07–0.30/g; ~$25 order minimum | https://jlc3dp.com |
+| MODON commercial tariff | SAR 0.22/kWh commercial (1–6,000 kWh band) | https://modon.gov.sa/en/Systems/IndustryCost/Pages/Electricity.aspx |
+| Ender-3 V3 SE measured draw | ~125 W average; 350 W is rated peak | https://filamino.com/blog/3d-printer-electricity-cost |
+| FDM reliability study (2026-03) | 94.2% success over 120 tracked runs; open-studio waste studies 19–35% | https://layercraftlog.com/fdm-printing/how-does-print-failure-rate-compare-between-fdm-and-resin-printers |
+| Saudi labour reference | Minimum SAR 23.08/hour; general worker average SAR 25.60/hour | https://wage.is/saudi-arabia |
+
+Unit economics behind the rates (business assumptions to confirm against owner invoices): landed PLA ≈ SAR 0.10/g including purge; electricity ≈ SAR 0.03/hour at measured average draw; machine wear and maintenance ≈ SAR 0.35/hour (printer ÷ ~6,000 useful hours plus maintenance); handling labour ≈ SAR 35/hour fully loaded with ~20 minutes per typical order; packaging/pickup ≈ SAR 3/order; ~6% failure reserve inside the rates. A typical 100 g / 6 h order now prices at SAR 76 with roughly 63% gross margin; a 20 g / 1 h job hits the SAR 39 minimum instead of the old near-break-even SAR 25. These figures are estimates, not audited profit.
+
+Catalog base prices were re-anchored to the revised policy and rounded to clean SAR 9 endings: Ripple Vase 79, Orbit Planter 159, Wave Catchall 39, Arch Phone Stand 119, Loop Organizer 129, Ripple Shade 159. Catalog prices remain studio-editable in the admin panel.
+
 ## Implemented revision
 
 The configurator uses the physical 220/220/250 XYZ limits, auto-fit computes the limiting axis, and server quotes independently reject overflow. Model-native Z-up uploads rotate to Y-up only for rendering. One order item selects one PLA colour. Red/blue/grey/black/white are the initial palette; supplier stock does not override user stock.
 
-The minimum applies after multiplying quantity on each configured order line. The initial catalog prices are editable base prices recomputed from mesh-volume-based mass estimates and the provisional selling policy, rounded up to whole SAR. Catalog prices scale with size cubed and quality/strength multipliers. Hollow radial-shell mass estimates account for their modelled cavity; solid phone-stand mass is adjusted for 20% infill using a conservative shell allowance. All masses/times remain provisional, not actual slicer measurements. The browser estimate and server use the same calculateQuote implementation. Custom unsupported geometry cannot be priced accurately from bounds alone; the website labels it provisional and confirms the quote before production.
+The minimum applies after multiplying quantity and applying any volume discount on each configured order line: `max(39, gross - gross * discountRate)`. The initial catalog prices are editable base prices recomputed from mesh-volume-based mass estimates and the revised selling policy, rounded to SAR 9 endings. Catalog prices scale with size cubed and quality/strength multipliers. Hollow radial-shell mass estimates account for their modelled cavity; solid phone-stand mass is adjusted for 20% infill using a conservative shell allowance. All masses/times remain provisional, not actual slicer measurements. The browser estimate and server use the same calculateQuote implementation. Custom unsupported geometry cannot be priced accurately from bounds alone; the website labels it provisional and confirms the quote before production.
 
 Custom geometry fallback adds a visible 10% support-material allowance when automatic supports are selected; it is a provisional assumption, not a measured slicer result. The site uses a conservative 0.1–0.32 mm quality range for the standard 0.4 mm nozzle. Order submission checks combined material demand across every line. Configured stock quantities remain setup data until the owner enters a physical inventory count.

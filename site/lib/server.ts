@@ -1,14 +1,35 @@
 import {createClient, type Client} from '@libsql/client';
 import postgres, {type Sql} from 'postgres';
 import {put as blobPut, del as blobDel, get as blobGet} from '@vercel/blob';
-let cfEnv: any = {};
+type CloudflareBindings = {
+  DB?: D1Database;
+  BUCKET?: R2Bucket;
+  STUDIO_ADMIN_EMAIL?: string;
+  SLICER_URL?: string;
+  SLICER_TOKEN?: string;
+  SLICER_PROFILE_REVISION?: string;
+  LOCAL_ADMIN_EMAIL?: string;
+  [key: string]: unknown;
+};
+let cfEnv: CloudflareBindings = {};
 try {
-  // @ts-ignore
-  cfEnv = (await import('cloudflare:workers')).env;
+  // "cloudflare:workers" is only resolvable under workerd / vinext at runtime;
+  // @cloudflare/workers-types declares the module, so no ts-ignore is needed.
+  cfEnv = (await import('cloudflare:workers')).env as CloudflareBindings;
 } catch {}
 import {cookies,headers} from 'next/headers';
 import {randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 import {products,materials,qualityOptions,normalizeCatalogProduct,normalizeCatalogMaterial,type Product,type Material} from './catalog';
+
+// Local row/param shapes shared by the Turso and Postgres D1-compatibility shims.
+type SqlParam = string | number | boolean | Date | Uint8Array | null;
+type BoundStatement = {
+  _q: string;
+  _params: SqlParam[];
+  first<T = unknown>(): Promise<T | null>;
+  all<T = unknown>(): Promise<{results: T[]}>;
+  run(): Promise<{success: boolean; meta: {changes: number}}>;
+};
 
 // ---- Pluggable storage: Cloudflare D1/R2 where native, Turso/Supabase + Vercel Blob on Vercel ----
 let tursoClient: Client | null = null;
@@ -20,28 +41,28 @@ function tursoDb() {
   } catch { return undefined; }
   const client = tursoClient;
   // Minimal D1-compatible shim so every existing prepare/bind/first/all/run/batch call site works unchanged.
-  const mkBound = (q: string, params: any[]) => ({
+  const mkBound = (q: string, params: SqlParam[]): BoundStatement => ({
     _q: q, _params: params,
-    async first<T = any>(): Promise<T | null> {
-      const r = await client.execute({sql: q, args: params as any});
-      return ((r.rows[0] ?? null) as any);
+    async first<T = unknown>(): Promise<T | null> {
+      const r = await client.execute({sql: q, args: params});
+      return ((r.rows[0] ?? null) as unknown as T);
     },
-    async all<T = any>(): Promise<{results: T[]}> {
-      const r = await client.execute({sql: q, args: params as any});
-      return {results: r.rows as any};
+    async all<T = unknown>(): Promise<{results: T[]}> {
+      const r = await client.execute({sql: q, args: params});
+      return {results: r.rows as unknown as T[]};
     },
     async run() {
-      const r = await client.execute({sql: q, args: params as any});
+      const r = await client.execute({sql: q, args: params});
       return {success: true, meta: {changes: r.rowsAffected}};
     },
   });
   return {
     prepare(sql: string) {
       const unbound = mkBound(sql, []);
-      return {bind: (...params: any[]) => mkBound(sql, params), first: () => unbound.first(), all: () => unbound.all(), run: () => unbound.run()};
+      return {bind: (...params: SqlParam[]) => mkBound(sql, params), first: () => unbound.first(), all: () => unbound.all(), run: () => unbound.run()};
     },
-    async batch(list: any[]) {
-      const out = await client.batch(list.map(s => ({sql: s._q, args: s._params as any})));
+    async batch(list: BoundStatement[]) {
+      const out = await client.batch(list.map(s => ({sql: s._q, args: s._params})));
       return out.map(r => ({success: true, meta: {changes: r.rowsAffected}}));
     },
   };
@@ -66,30 +87,37 @@ function pgDb() {
     pgSql ??= postgres(url, {prepare: false, max: 1, idle_timeout: 5, connect_timeout: 10});
   } catch { return undefined; }
   const sql = pgSql;
-  const mkBound = (q: string, params: any[]) => ({
+  // postgres.unsafe resolves to the row array; write statements also expose a
+  // numeric `count`, which the shim maps onto the D1 `meta.changes` field.
+  type PgRows = Array<Record<string, unknown>> & {count?: number};
+  const runQuery = async (q: string, params: SqlParam[]): Promise<PgRows> => {
+    const rows = await sql.unsafe(toPg(q), params);
+    return rows as unknown as PgRows;
+  };
+  const mkBound = (q: string, params: SqlParam[]): BoundStatement => ({
     _q: q, _params: params,
-    async first<T = any>(): Promise<T | null> {
-      const rows: any = await (sql as any).unsafe(toPg(q), params);
-      return ((rows[0] ?? null) as any);
+    async first<T = unknown>(): Promise<T | null> {
+      const rows = await runQuery(q, params);
+      return ((rows[0] ?? null) as unknown as T);
     },
-    async all<T = any>(): Promise<{results: T[]}> {
-      const rows: any = await (sql as any).unsafe(toPg(q), params);
-      return {results: rows as any};
+    async all<T = unknown>(): Promise<{results: T[]}> {
+      const rows = await runQuery(q, params);
+      return {results: rows as unknown as T[]};
     },
     async run() {
-      const rows: any = await (sql as any).unsafe(toPg(q), params);
+      const rows = await runQuery(q, params);
       return {success: true, meta: {changes: rows.count ?? 0}};
     },
   });
   return {
     prepare(q: string) {
       const unbound = mkBound(q, []);
-      return {bind: (...params: any[]) => mkBound(q, params), first: () => unbound.first(), all: () => unbound.all(), run: () => unbound.run()};
+      return {bind: (...params: SqlParam[]) => mkBound(q, params), first: () => unbound.first(), all: () => unbound.all(), run: () => unbound.run()};
     },
-    async batch(list: any[]) {
+    async batch(list: BoundStatement[]) {
       const out = [];
       for (const s of list) {
-        const rows: any = await (sql as any).unsafe(toPg(s._q), s._params);
+        const rows = await runQuery(s._q, s._params);
         out.push({success: true, meta: {changes: rows.count ?? 0}});
       }
       return out;
@@ -102,7 +130,8 @@ function blobBucket() {
     // Returns nothing; callers persist the pathname key. Reads go through the
     // token-authenticated server SDK so private stores work (no public URLs).
     async put(key: string, body: Uint8Array, opts?: {httpMetadata?: {contentType?: string}}) {
-      await blobPut(key, body as any, {access: 'private', contentType: opts?.httpMetadata?.contentType, addRandomSuffix: false});
+      // Buffer is a Uint8Array subclass; the cast only satisfies @vercel/blob's PutBody union.
+      await blobPut(key, body as unknown as Buffer, {access: 'private', contentType: opts?.httpMetadata?.contentType, addRandomSuffix: false});
       return {};
     },
     async get(key: string) {
@@ -112,7 +141,7 @@ function blobBucket() {
         return {body: res.body, arrayBuffer: () => res.arrayBuffer()};
       }
       try {
-        const b: any = await blobGet(key, {access: 'private'});
+        const b = await blobGet(key, {access: 'private'});
         if (!b || !b.stream) return null;
         return {body: b.stream as ReadableStream, arrayBuffer: () => new Response(b.stream).arrayBuffer()};
       } catch { return null; }
@@ -123,7 +152,7 @@ function blobBucket() {
   };
 }
 export function hasDb(){return !!(cfEnv?.DB || (typeof process !== 'undefined' && (process.env.TURSO_DATABASE_URL || process.env.SUPABASE_DB_URL)))}
-export const runtime=new Proxy({} as any, {
+export const runtime=new Proxy({} as Record<string, unknown>, {
   get(_target, prop: string) {
     if (prop === 'DB') return cfEnv?.DB ?? tursoDb() ?? pgDb();
     if (prop === 'BUCKET') return cfEnv?.BUCKET ?? blobBucket();
@@ -162,7 +191,21 @@ export async function isAdmin(){
 export async function requireAdmin(){if(!await isAdmin())throw new ApiError('Studio access is restricted to the owner.',403)}
 export class ApiError extends Error{status:number;constructor(message:string,status=400){super(message);this.status=status}}
 export function responseError(error:unknown){const status=error instanceof ApiError?error.status:400;console.error('Forma3D request:',error instanceof Error?error.message:'Unexpected error');return Response.json({error:error instanceof Error?error.message:'Something went wrong. Try again.'},{status})}
-export async function sameOrigin(request:Request){const origin=request.headers.get('origin');if(origin&&origin!==new URL(request.url).origin)throw new ApiError('Please use the Forma3D website to place your request.',403)}
+export async function sameOrigin(request:Request){
+  const origin=request.headers.get('origin');
+  if(!origin)return;
+  const reqUrl=new URL(request.url);
+  if(origin===reqUrl.origin)return;
+  try{
+    const h=await headers();
+    const host=h.get('x-forwarded-host')??h.get('host')??reqUrl.host;
+    const proto=h.get('x-forwarded-proto')??reqUrl.protocol.replace(':','');
+    if(origin===`${proto}://${host}`)return;
+    const isLocal=(origin.includes('localhost')||origin.includes('127.0.0.1'))&&(reqUrl.hostname==='localhost'||reqUrl.hostname==='127.0.0.1'||host.includes('localhost')||host.includes('127.0.0.1'));
+    if(isLocal)return;
+  }catch{}
+  throw new ApiError('Please use the Forma3D website to place your request.',403);
+}
 export async function rateLimit(scope:string,max:number,seconds:number){
   if(!hasDb()){
     // Degraded per-instance limiting so read-only features (chat, quotes) stay up with no database.

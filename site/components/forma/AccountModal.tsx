@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -47,6 +47,20 @@ interface UserProfile {
   role: 'customer' | 'admin';
 }
 
+const statusLabels: Record<string, [string, string]> = {
+  awaiting_payment: ['Awaiting payment', 'بانتظار الدفع'],
+  pending: ['Pending review', 'بانتظار المراجعة'],
+  reviewed: ['Reviewed', 'تمت المراجعة'],
+  queued: ['In queue', 'في قائمة الانتظار'],
+  printing: ['Printing', 'قيد الطباعة'],
+  finishing: ['Finishing', 'مرحلة التشطيب'],
+  ready: ['Ready for pickup', 'جاهز للاستلام'],
+  completed: ['Completed', 'مكتمل'],
+  declined: ['Declined', 'مرفوض'],
+  changes_requested: ['Changes requested', 'مطلوب إجراء تعديلات'],
+  cancelled: ['Cancelled', 'ملغي'],
+};
+
 export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
   const router = useRouter();
   const [tab, setTab] = useState<'track' | 'signin' | 'register'>('signin');
@@ -77,21 +91,31 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
 
   const t = (en: string, arabic: string) => (ar ? arabic : en);
   const statusLabel = (status: string) => {
-    const labels: Record<string, [string, string]> = {
-      awaiting_payment: ['Awaiting payment', 'بانتظار الدفع'],
-      pending: ['Pending review', 'بانتظار المراجعة'],
-      reviewed: ['Reviewed', 'تمت المراجعة'],
-      queued: ['In queue', 'في قائمة الانتظار'],
-      printing: ['Printing', 'قيد الطباعة'],
-      finishing: ['Finishing', 'مرحلة التشطيب'],
-      ready: ['Ready for pickup', 'جاهز للاستلام'],
-      completed: ['Completed', 'مكتمل'],
-      declined: ['Declined', 'مرفوض'],
-      changes_requested: ['Changes requested', 'مطلوب إجراء تعديلات'],
-      cancelled: ['Cancelled', 'ملغي'],
-    };
-    const known = labels[status.toLowerCase()];
+    const known = statusLabels[status.toLowerCase()];
     return known ? t(known[0], known[1]) : status.replaceAll('_', ' ');
+  };
+
+  // Clear credentials and transient errors whenever the dialog closes.
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setPassword('');
+      setShowPassword(false);
+      setAuthError('');
+      setLogoutError('');
+    }
+    onOpenChange(nextOpen);
+  };
+
+  // Pinning the close button on scroll only needs one write per frame.
+  const scrollFrame = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(scrollFrame.current), []);
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const current = event.currentTarget;
+    if (scrollFrame.current) return;
+    scrollFrame.current = requestAnimationFrame(() => {
+      scrollFrame.current = 0;
+      if (current.isConnected) current.style.setProperty('--studio-scroll-y', `${current.scrollTop}px`);
+    });
   };
 
   // Check auth and load orders on modal open
@@ -150,7 +174,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
       ...(phone.trim() ? { phone: phone.trim() } : {}),
     });
     router.push(`/track?${params.toString()}`);
-    onOpenChange(false);
+    handleOpenChange(false);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -190,7 +214,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
       );
       if (data.user.role === 'admin') {
         router.push('/admin');
-        onOpenChange(false);
+        handleOpenChange(false);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : t('Sign in failed. Please try again.', 'تعذر تسجيل الدخول. حاول مرة أخرى.');
@@ -258,18 +282,18 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="account-dialog max-w-5xl max-h-[92dvh] overflow-y-auto p-6 sm:p-8"
         dir={ar ? 'rtl' : 'ltr'}
-        onScroll={(event) => event.currentTarget.style.setProperty('--studio-scroll-y', `${event.currentTarget.scrollTop}px`)}
+        onScroll={handleScroll}
       >
         <div className="account-header border-b border-border/40 pb-4">
           <div className="flex items-center gap-2 text-primary text-xs font-semibold uppercase tracking-wider mb-1.5">
             <User size={15} />
           <span>{t('Your Forma account', 'حسابك في فورما')}</span>
           </div>
-          <DialogTitle className="text-2xl font-bold tracking-tight">
+          <DialogTitle className="text-2xl font-bold tracking-tight break-words">
             {currentUser
               ? t(`Signed In as ${currentUser.name}`, `مسجل كـ ${currentUser.name}`)
               : t('Your Forma account', 'حسابك في فورما')}
@@ -351,7 +375,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
               </div>
 
               {ordersLoading ? (
-                <div className="p-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                <div className="p-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2" role="status" aria-live="polite">
                   <Loader2 size={14} className="animate-spin text-primary" />
                   <span>{t('Loading your prints…', 'جارٍ تحميل طلباتك…')}</span>
                 </div>
@@ -364,17 +388,17 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                   {t('No orders placed with this account yet.', 'لم تقم بإنشاء طلبات بهذا الحساب بعد.')}
                 </div>
               ) : (
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-0.5">
+                <div className="space-y-2 max-h-56 overflow-y-auto overscroll-contain pr-0.5">
                   {userOrders.map((ord) => (
                     <a
                       key={ord.id}
                       href={`/track?id=${ord.id}`}
-                      className="flex items-center justify-between p-3 rounded-md border border-border/70 bg-background hover:bg-muted/30 transition-colors block text-xs group cursor-pointer"
+                      className="flex items-center justify-between gap-3 p-3 rounded-md border border-border/70 bg-background hover:bg-muted/30 transition-colors block text-xs group cursor-pointer"
                     >
-                      <div className="space-y-0.5">
-                        <div className="font-mono font-bold text-primary text-xs flex items-center gap-1.5">
-                          <span>{ord.id}</span>
-                          <span className="text-[10px] text-muted-foreground font-normal">
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="font-mono font-bold text-primary text-xs flex items-center gap-1.5 min-w-0">
+                          <span className="break-all" title={ord.id}>{ord.id}</span>
+                          <span className="text-[10px] text-muted-foreground font-normal shrink-0">
                             {new Date(ord.created).toLocaleDateString(ar ? 'ar-SA' : 'en-GB')}
                           </span>
                         </div>
@@ -382,8 +406,8 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                           {ord.items?.map((it) => it.name).join(', ') || t('Custom 3D Print', 'طلب طباعة ثلاثية الأبعاد')}
                         </div>
                       </div>
-                      <div className="text-end space-y-0.5">
-                        <div className="font-bold text-foreground">SAR {ord.total}</div>
+                      <div className="text-end space-y-0.5 shrink-0">
+                        <div className="font-bold text-foreground whitespace-nowrap">SAR {ord.total}</div>
                         <div className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary inline-block">
                           {statusLabel(ord.status)}
                         </div>
@@ -422,7 +446,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                     'تابع طلبك خلال المراجعة والإنتاج. أدخل رقم الطلب ورقم الجوال المستخدم عند الطلب.'
                   )}
                 </p>
-                <form onSubmit={handleLookup} className="space-y-2.5">
+                <form onSubmit={handleLookup} className="account-form space-y-2.5">
                   <div>
                     <label htmlFor="account-order-id" className="block text-[11px] font-medium text-muted-foreground mb-1">
                       {t('Order Number', 'رقم الطلب')}
@@ -435,6 +459,9 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                       onChange={(e) => setOrderId(e.target.value)}
                       className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background uppercase font-mono tracking-wider"
                       dir="ltr"
+                      autoComplete="off"
+                      spellCheck={false}
+                      enterKeyHint="next"
                       required
                     />
                   </div>
@@ -450,12 +477,15 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                       onChange={(e) => setPhone(e.target.value)}
                       className="w-full px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background font-mono"
                       dir="ltr"
+                      autoComplete="tel"
+                      inputMode="tel"
+                      enterKeyHint="go"
                       required
                     />
                   </div>
                   <button
                     type="submit"
-                    className="w-full mt-1 px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer min-h-[44px]"
+                    className="account-submit w-full mt-1 px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer min-h-[44px]"
                   >
                     <Search size={14} />
                     <span>{t('Track Print Now', 'تتبع الطباعة الآن')}</span>
@@ -482,7 +512,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
             {/* TAB 2: Sign In with Email & Password */}
             <TabsContent value="signin" className="pt-3">
               {authError && <p className="studio-form-error" role="alert">{authError}</p>}
-              <form onSubmit={handleLogin} className="space-y-3">
+              <form onSubmit={handleLogin} className="account-form space-y-3" aria-busy={busy}>
                 <div>
                   <label htmlFor="account-email" className="block text-[11px] font-medium text-muted-foreground mb-1">
                     {t('Email Address', 'البريد الإلكتروني')}
@@ -518,7 +548,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[48px]"
+                  className="account-submit w-full px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[48px]"
                 >
                   {busy ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
                   <span>{busy ? t('Signing In…', 'جارٍ الدخول…') : t('Sign In', 'تسجيل الدخول')}</span>
@@ -528,7 +558,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
               <div className="mt-4 pt-3 border-t border-border/40 text-center">
                 <a
                   href="/admin"
-                  onClick={() => onOpenChange(false)}
+                  onClick={() => handleOpenChange(false)}
                   className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                 >
                   <ExternalLink size={12} />
@@ -540,7 +570,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
             {/* TAB 3: Register New Account */}
             <TabsContent value="register" className="pt-3">
               {authError && <p className="studio-form-error" role="alert">{authError}</p>}
-              <form onSubmit={handleRegister} className="space-y-2.5">
+              <form onSubmit={handleRegister} className="account-form space-y-2.5" aria-busy={busy}>
                 <div>
                   <label htmlFor="account-name" className="block text-[11px] font-medium text-muted-foreground mb-1">
                     {t('Full Name', 'الاسم الكامل')}
@@ -622,7 +652,7 @@ export function AccountModal({ open, onOpenChange, ar }: AccountModalProps) {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full mt-2 px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[48px]"
+                  className="account-submit w-full mt-2 px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[48px]"
                 >
                   {busy ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
                   <span>{busy ? t('Creating Account…', 'جارٍ إنشاء الحساب…') : t('Create Account', 'إنشاء الحساب')}</span>

@@ -30,14 +30,16 @@ export default function WorldRenderer({scene:state,commandRef,onReady,onFailed}:
   useEffect(()=>{stateRef.current=state;updateRef.current?.()},[state]);
   useEffect(()=>{
     const element=host.current;if(!element)return;
-    let renderer:THREE.WebGLRenderer;
-    try{renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'high-performance'});}catch{onFailed(true);return;}
-    let disposed=false,frame=0,root:THREE.Group|null=null,sourceKey='',loadGeneration=0,revealAt=0,transitionAt=performance.now(),interacting=false,slowFrames=0;
-    let points:THREE.Points|null=null,construction:THREE.Box3Helper|null=null,physicalHeight=160,normalizedHeight=3.8;
-    let localBounds:THREE.Box3|null=null,pendingEdges:THREE.Group|null=null;
-    const hardware=navigator as Navigator&{deviceMemory?:number;connection?:{saveData?:boolean}};
+    const hardware=navigator as Navigator&{deviceMemory?:number;connection?:{saveData?:boolean}},coarsePointer=matchMedia('(pointer: coarse)').matches||innerWidth<820;
     let tier=hardware.connection?.saveData||(hardware.deviceMemory??8)<=4||hardware.hardwareConcurrency<=4?0:innerWidth<800?1:2;
+    let renderer:THREE.WebGLRenderer;
+    try{renderer=new THREE.WebGLRenderer({alpha:true,antialias:tier>0,powerPreference:tier===0?'low-power':'default'});}catch{onFailed(true);return;}
+    let disposed=false,frame=0,root:THREE.Group|null=null,sourceKey='',loadGeneration=0,revealAt=0,transitionAt=performance.now(),interacting=false,slowFrames=0,interactionRestore:ReturnType<typeof setTimeout>|undefined,contextLosses=0,lastRatio=0,loadAbort:AbortController|null=null;
+    let points:THREE.Points|null=null,construction:THREE.Box3Helper|null=null,physicalHeight=160,normalizedHeight=3.8;
+    let localBounds:THREE.Box3|null=null,pendingEdges:THREE.Group|null=null,rootMeshes:THREE.Mesh[]=[];
     const reduced=matchMedia('(prefers-reduced-motion: reduce)'),world=new THREE.Scene();
+    const cameraRender=new THREE.Vector3(),scaleRender=new THREE.Vector3(),boundsCorner=new THREE.Vector3(),boundsMin=[0,0,0],boundsMax=[0,0,0];
+    const structureTint=new THREE.Color('#efeee5');
     const camera=new THREE.PerspectiveCamera(32,1,.05,80),cameraGoal=new THREE.Vector3(3,1.9,7.2),look=new THREE.Vector3(),lookGoal=new THREE.Vector3();
     camera.position.copy(cameraGoal);
     renderer.setClearColor(0x000000,0);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.9;renderer.localClippingEnabled=true;
@@ -91,7 +93,15 @@ export default function WorldRenderer({scene:state,commandRef,onReady,onFailed}:
     let measureKey='';
     const pointer=new THREE.Vector2(),pointerGoal=new THREE.Vector2(),rotationGoal=new THREE.Euler(.07,-.35,-.11),positionGoal=new THREE.Vector3(.9,-.1,0);
     let scaleGoal=1,orbitX=0,orbitY=0,zoom=1;
-    function quality(){element!.dataset.renderTier=['LOW','MEDIUM','HIGH'][tier];renderer.setPixelRatio(Math.min(devicePixelRatio||1,[1,1.35,1.8][tier]));renderer.shadowMap.enabled=tier>0;key.shadow.mapSize.set(tier===2?1024:512,tier===2?1024:512);if(key.shadow.map){key.shadow.map.dispose();key.shadow.map=null}}
+    function quality(){
+      element!.dataset.renderTier=['LOW','MEDIUM','HIGH'][tier];
+      const cap=Math.min(devicePixelRatio||1,tier===2?(coarsePointer?1.5:2):tier===1?1.35:1);
+      const ratio=interacting?Math.max(.75,cap*.72):cap;
+      if(Math.abs(ratio-lastRatio)>.001){renderer.setPixelRatio(ratio);lastRatio=ratio;}
+      renderer.shadowMap.enabled=tier>0;
+      const shadowSize=tier===2?1024:512;
+      if(key.shadow.mapSize.x!==shadowSize){key.shadow.mapSize.set(shadowSize,shadowSize);if(key.shadow.map){key.shadow.map.dispose();key.shadow.map=null}}
+    }
     function requestFrame(){if(!frame&&!disposed&&document.visibilityState!=='hidden')frame=requestAnimationFrame(tick)}
     function fitShot(){
       const scene=stateRef.current,mobile=innerWidth<760,rtl=scene.rtl??document.documentElement.dir==='rtl',sign=rtl?-1:1;
@@ -136,7 +146,7 @@ export default function WorldRenderer({scene:state,commandRef,onReady,onFailed}:
       const scene=stateRef.current,response=physicalResponse(scene.material??'pla',scene.finishing??'none');
       surface.color.set(scene.color??'#efeee5');surface.roughness=response.roughness;surface.clearcoat=response.clearcoat;
       if(surface.transmission!==response.transmission){surface.transmission=response.transmission;surface.needsUpdate=true}surface.ior=response.ior;surface.thickness=.12;
-      structureSurface.color.set(scene.color??'#b9cdee').lerp(new THREE.Color('#efeee5'),.4);
+      structureSurface.color.set(scene.color??'#b9cdee').lerp(structureTint,.4);
       setStructure(!!scene.wireframe||scene.stage==='pending');
       const layer=scene.layerHeight??({fast:.28,standard:.2,smooth:.16,detail:.12} as Record<string,number>)[scene.quality??'standard']??.2;
       printFrequency.value=Math.PI*2*(scene.heightMM??physicalHeight)*(scene.size??1)/normalizedHeight/layer;relief.value=scene.shot==='macro'?.0008:scene.finishing==='sanded'?.000012:.000045;
@@ -153,18 +163,35 @@ export default function WorldRenderer({scene:state,commandRef,onReady,onFailed}:
         root.traverse(node=>{if(node instanceof THREE.Mesh){const geometry=new THREE.EdgesGeometry(node.geometry,18);geometry.applyMatrix4(inverse.clone().multiply(node.matrixWorld));pendingEdges!.add(new THREE.LineSegments(geometry,lineMaterial))}});
         root.add(pendingEdges);
       }
-      root.traverse(node=>{if(node instanceof THREE.Mesh){node.visible=!pending;node.material=enabled?structureSurface:surface}});
+      for(const mesh of rootMeshes){mesh.visible=!pending;mesh.material=enabled?structureSurface:surface}
       if(pendingEdges){pendingEdges.visible=pending;pendingEdges.traverse(node=>{if(node instanceof THREE.LineSegments)(node.material as THREE.LineBasicMaterial).color.copy(structureSurface.color)})}
+    }
+    function rootBottom(){
+      if(!root||!localBounds)return -1.8;
+      // Only the root matrix changed; children offsets are static since load.
+      // The renderer refreshes the full scene graph later in the same frame.
+      root.updateMatrix();
+      if(root.parent)root.matrixWorld.multiplyMatrices(root.parent.matrixWorld,root.matrix);else root.matrixWorld.copy(root.matrix);
+      const matrix=root.matrixWorld;
+      boundsMin[0]=localBounds.min.x;boundsMin[1]=localBounds.min.y;boundsMin[2]=localBounds.min.z;
+      boundsMax[0]=localBounds.max.x;boundsMax[1]=localBounds.max.y;boundsMax[2]=localBounds.max.z;
+      let minimum=Infinity;
+      for(let xi=0;xi<2;xi++)for(let yi=0;yi<2;yi++)for(let zi=0;zi<2;zi++){
+        boundsCorner.set(xi?boundsMax[0]:boundsMin[0],yi?boundsMax[1]:boundsMin[1],zi?boundsMax[2]:boundsMin[2]).applyMatrix4(matrix);
+        if(boundsCorner.y<minimum)minimum=boundsCorner.y;
+      }
+      return Number.isFinite(minimum)?minimum:-1.8;
     }
     async function loadObject(){
       const scene=stateRef.current;
       const key=scene.file?`file:${scene.file.name}:${scene.file.size}:${scene.file.lastModified}`:scene.modelUrl??`catalog:${scene.kind??'vase'}`;
       if(sourceKey===key)return;sourceKey=key;const generation=++loadGeneration;
+      loadAbort?.abort();const controller=new AbortController();loadAbort=controller;
       onReady(false);let object:THREE.Object3D;
       try{
         if(scene.file||scene.modelUrl){
           let file=scene.file;
-          if(!file){const response=await fetch(scene.modelUrl!);if(!response.ok)throw new Error('The model could not be opened. Try again.');const extension=/\.3mf/i.test(response.headers.get('content-disposition')??'')?'.3mf':'.stl';file=new File([await response.blob()],'model'+extension)}
+          if(!file){const response=await fetch(scene.modelUrl!,{signal:controller.signal});if(!response.ok)throw new Error('The model could not be opened. Try again.');const extension=/\.3mf/i.test(response.headers.get('content-disposition')??'')?'.3mf':'.stl';file=new File([await response.blob()],'model'+extension)}
           const parsed=await parseModel(file);object=parsed.object;object.rotation.x=-Math.PI/2;scene.onStats?.(parsed.stats);physicalHeight=parsed.stats.dimensions[2];
         }else{
           try{const gltf=await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('/models/'+(scene.kind??'vase')+'.glb');object=gltf.scene}catch{object=new THREE.Mesh(createProductGeometry(scene.kind??'vase',true),surface)}
@@ -176,6 +203,7 @@ export default function WorldRenderer({scene:state,commandRef,onReady,onFailed}:
         const oldMaterials=new Set<THREE.Material>();object.traverse(node=>{if(node instanceof THREE.Mesh){for(const previous of Array.isArray(node.material)?node.material:[node.material])if(previous!==surface)oldMaterials.add(previous);node.material=surface;node.castShadow=true;node.receiveShadow=true}});oldMaterials.forEach(m=>{for(const value of Object.values(m))if(value instanceof THREE.Texture)value.dispose();m.dispose()});
         if(root){world.remove(root);disposeTree(root,[surface,structureSurface])}if(points){world.remove(points);disposeTree(points);points=null}if(construction){world.remove(construction);disposeTree(construction);construction=null}
         pendingEdges=null;root=new THREE.Group();root.add(object);world.add(root);root.position.copy(positionGoal);root.rotation.copy(rotationGoal);root.scale.setScalar(scaleGoal);
+        rootMeshes=[];root.traverse(node=>{if(node instanceof THREE.Mesh)rootMeshes.push(node)});
         revealAt=scene.file&&!reduced.matches?performance.now():0;
         if(revealAt){
         const sampled:number[]=[];root.updateMatrixWorld(true);const inverseRoot=root.matrixWorld.clone().invert();object.traverse(node=>{if(node instanceof THREE.Mesh){const pos=node.geometry.getAttribute('position'),step=Math.max(1,Math.ceil(pos.count/4500));const point=new THREE.Vector3();for(let i=0;i<pos.count;i+=step){point.fromBufferAttribute(pos,i).applyMatrix4(node.matrixWorld).applyMatrix4(inverseRoot);sampled.push(point.x,point.y,point.z)}}});
@@ -183,7 +211,7 @@ export default function WorldRenderer({scene:state,commandRef,onReady,onFailed}:
           construction=new THREE.Box3Helper(localBounds.clone(),0x849fdc);world.add(construction);
         }
         measureKey='';fitShot();updateAppearance();onReady(true);onFailed(false);requestFrame();
-      }catch(error){if(disposed||generation!==loadGeneration)return;sourceKey='';if(root){world.remove(root);disposeTree(root,[surface,structureSurface]);root=null}scene.onError?.(error instanceof Error?error.message:'Could not open the object.');onFailed(true);onReady(false)}
+      }catch(error){if(disposed||generation!==loadGeneration)return;sourceKey='';if(root){world.remove(root);disposeTree(root,[surface,structureSurface]);root=null;rootMeshes=[]}scene.onError?.(error instanceof Error?error.message:'Could not open the object.');onFailed(true);onReady(false)}
     }
     function update(){fitShot();updateAppearance();if(!['hidden','lab'].includes(stateRef.current.shot))void loadObject()}
     updateRef.current=update;
@@ -191,13 +219,14 @@ export default function WorldRenderer({scene:state,commandRef,onReady,onFailed}:
       frame=0;if(disposed||document.visibilityState==='hidden')return;
       const scene=stateRef.current;if(scene.shot==='hidden')return;
       const easing=reduced.matches?1:.095;let moving=now-transitionAt<1100;
-      camera.position.lerp(cameraGoal.clone().multiplyScalar(zoom),easing);look.lerp(lookGoal,easing);
+      cameraRender.copy(cameraGoal).multiplyScalar(zoom);
+      camera.position.lerp(cameraRender,easing);look.lerp(lookGoal,easing);
       pointer.lerp(pointerGoal,.09);camera.lookAt(look.x+pointer.x*.06,look.y+pointer.y*.045,look.z);
       if(root){
         measure.position.copy(root.position);measure.rotation.copy(root.rotation);measure.scale.copy(root.scale);
-        root.position.lerp(positionGoal,easing);root.rotation.x=THREE.MathUtils.lerp(root.rotation.x,rotationGoal.x+orbitY+pointer.y*.022,easing);root.rotation.y=THREE.MathUtils.lerp(root.rotation.y,rotationGoal.y+orbitX+pointer.x*.048,easing);root.rotation.z=THREE.MathUtils.lerp(root.rotation.z,rotationGoal.z,easing);root.scale.lerp(new THREE.Vector3(scaleGoal,scaleGoal,scaleGoal),easing);
+        root.position.lerp(positionGoal,easing);root.rotation.x=THREE.MathUtils.lerp(root.rotation.x,rotationGoal.x+orbitY+pointer.y*.022,easing);root.rotation.y=THREE.MathUtils.lerp(root.rotation.y,rotationGoal.y+orbitX+pointer.x*.048,easing);root.rotation.z=THREE.MathUtils.lerp(root.rotation.z,rotationGoal.z,easing);root.scale.lerp(scaleRender.setScalar(scaleGoal),easing);
         printAxis.value.set(0,1,0).applyQuaternion(root.quaternion);printOrigin.value.copy(root.position);printScale.value=root.scale.x;
-        const bottom=new THREE.Box3().setFromObject(root).min.y;floor.position.y=Math.min(-1.92,bottom-.045);shadow.position.set(root.position.x,floor.position.y+.013,root.position.z);shadow.scale.setScalar(Math.max(.6,scaleGoal));
+        const bottom=rootBottom();floor.position.y=Math.min(-1.92,bottom-.045);shadow.position.set(root.position.x,floor.position.y+.013,root.position.z);shadow.scale.setScalar(Math.max(.6,scaleGoal));
         if(revealAt){
           const elapsed=now-revealAt,progress=Math.min(elapsed/1000,1);root.visible=progress>.18;setStructure(progress<.5||!!scene.wireframe);
           if(points){points.position.copy(root.position);points.rotation.copy(root.rotation);points.scale.copy(root.scale);points.visible=progress<.5;(points.material as THREE.PointsMaterial).opacity=1-progress*1.7}
@@ -208,24 +237,33 @@ export default function WorldRenderer({scene:state,commandRef,onReady,onFailed}:
         }else{root.visible=scaleGoal>0;shadowMaterial.opacity=1;sliceActive.value=scene.analyzing||['reviewed','queued','printing','finishing'].includes(scene.stage??'')?1:0;if(sliceActive.value){sliceHeight.value=THREE.MathUtils.lerp(localBounds?.min.y??-1.8,localBounds?.max.y??1.8,(Math.sin(now*.0017)+1)/2);moving=true}}
       }
       if(scene.shot==='lab'&&scene.drag){strand.rotation.y=THREE.MathUtils.lerp(strand.rotation.y,.35,.1)}
-      if(pointer.distanceTo(pointerGoal)>.001||camera.position.distanceTo(cameraGoal.clone().multiplyScalar(zoom))>.003)moving=true;
+      if(pointer.distanceTo(pointerGoal)>.001||camera.position.distanceTo(cameraRender)>0.003)moving=true;
       const started=performance.now();renderer.render(world,camera);if(performance.now()-started>35&&tier>0){if(++slowFrames>5){tier--;quality();resize();slowFrames=0}}
       if(moving&&!reduced.matches)requestFrame();
     }
-    function resize(){const width=element!.clientWidth,height=element!.clientHeight;if(width<=0||height<=0)return;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();fitShot()}
+    function resize(){const width=element!.clientWidth,height=element!.clientHeight;if(width<=0||height<=0)return;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();quality();fitShot()}
     const observer=new ResizeObserver(resize);observer.observe(element);quality();resize();
+    const onWindowResize=()=>resize();
+    window.addEventListener('resize',onWindowResize);window.addEventListener('orientationchange',onWindowResize);
     const move=(event:PointerEvent)=>{if(reduced.matches||event.pointerType==='touch'||interacting)return;pointerGoal.set((event.clientX/innerWidth-.5)*2,-(event.clientY/innerHeight-.5)*2);requestFrame()};
     const leave=()=>{pointerGoal.set(0,0);requestFrame()};
     // Hit-free DOM HUD; pointer input on the stage drives the real object.
     let down:{x:number;y:number;id:number}|null=null;
-    const start=(event:PointerEvent)=>{if(!(event.target instanceof Element)||event.target.closest('button,a,input,select,textarea,[role=tab],label,summary,[data-hud]'))return;if(!['product','archive','hero','tracking'].includes(stateRef.current.shot))return;down={x:event.clientX,y:event.clientY,id:event.pointerId};interacting=true;};
+    const start=(event:PointerEvent)=>{if(!(event.target instanceof Element)||event.target.closest('button,a,input,select,textarea,[role=tab],label,summary,[data-hud]'))return;if(!['product','archive','hero','tracking'].includes(stateRef.current.shot))return;down={x:event.clientX,y:event.clientY,id:event.pointerId};interacting=true;if(interactionRestore){clearTimeout(interactionRestore);interactionRestore=undefined}quality();};
     const drag=(event:PointerEvent)=>{if(!down)return;const dx=event.clientX-down.x,dy=event.clientY-down.y;if(event.pointerType==='touch'&&Math.abs(dy)>Math.abs(dx)*1.3){down=null;interacting=false;return}orbitX+=dx*.004;orbitY=THREE.MathUtils.clamp(orbitY+dy*.002,-.6,.6);down.x=event.clientX;down.y=event.clientY;transitionAt=performance.now();requestFrame()};
-    const end=()=>{down=null;interacting=false};
+    const end=()=>{if(!down&&!interacting)return;down=null;interacting=false;if(interactionRestore)clearTimeout(interactionRestore);interactionRestore=setTimeout(()=>{interactionRestore=undefined;quality();requestFrame();},180)};
     window.addEventListener('pointermove',move,{passive:true});window.addEventListener('pointermove',drag,{passive:true});window.addEventListener('pointerdown',start,{passive:true});window.addEventListener('pointerup',end);window.addEventListener('pointercancel',end);window.addEventListener('blur',end);document.addEventListener('pointerleave',leave);
     const visibility=()=>{if(document.visibilityState==='hidden'){cancelAnimationFrame(frame);frame=0}else{transitionAt=performance.now();requestFrame()}};document.addEventListener('visibilitychange',visibility);
+    const onWindowBlur=()=>{cancelAnimationFrame(frame);frame=0;};
+    const onWindowFocus=()=>{if(document.visibilityState==='hidden')return;transitionAt=performance.now();requestFrame();};
+    window.addEventListener('blur',onWindowBlur);window.addEventListener('focus',onWindowFocus);
     const motion=()=>{if(reduced.matches){revealAt=0;pointer.set(0,0);pointerGoal.set(0,0);if(points){world.remove(points);disposeTree(points);points=null}if(construction){world.remove(construction);disposeTree(construction);construction=null}element!.dataset.materialization='solid';shadowMaterial.opacity=1;setStructure(!!stateRef.current.wireframe||stateRef.current.stage==='pending')}fitShot()};reduced.addEventListener('change',motion);
-    const lost=(event:Event)=>{event.preventDefault();onFailed(true);onReady(false);cancelAnimationFrame(frame)};
-    const restored=()=>{onFailed(false);transitionAt=performance.now();requestFrame();};
+    const lost=(event:Event)=>{
+      event.preventDefault();cancelAnimationFrame(frame);frame=0;contextLosses++;
+      if(contextLosses>=3){onFailed(true);onReady(false);teardown();return;}
+      onFailed(true);onReady(false);
+    };
+    const restored=()=>{if(disposed)return;contextLosses=0;onFailed(false);transitionAt=performance.now();requestFrame();};
     renderer.domElement.addEventListener('webglcontextlost',lost);
     renderer.domElement.addEventListener('webglcontextrestored',restored);
     commandRef.current=command=>{
@@ -235,12 +273,13 @@ export default function WorldRenderer({scene:state,commandRef,onReady,onFailed}:
       if(command==='top'){orbitY=.9;orbitX=0}if(command==='front'){orbitY=-rotationGoal.x;orbitX=-rotationGoal.y}if(command==='side'){orbitY=0;orbitX=Math.PI/2}
       transitionAt=performance.now();requestFrame();
     };
+    function teardown(){
+      if(disposed)return;disposed=true;loadGeneration++;loadAbort?.abort();loadAbort=null;cancelAnimationFrame(frame);if(interactionRestore)clearTimeout(interactionRestore);observer.disconnect();controls.dispose();
+      window.removeEventListener('pointermove',move);window.removeEventListener('pointermove',drag);window.removeEventListener('pointerdown',start);window.removeEventListener('pointerup',end);window.removeEventListener('pointercancel',end);window.removeEventListener('blur',end);document.removeEventListener('pointerleave',leave);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('blur',onWindowBlur);window.removeEventListener('focus',onWindowFocus);reduced.removeEventListener('change',motion);renderer.domElement.removeEventListener('webglcontextlost',lost);renderer.domElement.removeEventListener('webglcontextrestored',restored);window.removeEventListener('resize',onWindowResize);window.removeEventListener('orientationchange',onWindowResize);
+      disposeTree(world,[surface,structureSurface]);surface.dispose();structureSurface.dispose();key.shadow.dispose();environment.dispose();shadowMap.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();commandRef.current=null;updateRef.current=null;rootMeshes=[];
+    }
     update();
-    return()=>{
-      disposed=true;loadGeneration++;cancelAnimationFrame(frame);observer.disconnect();controls.dispose();
-      window.removeEventListener('pointermove',move);window.removeEventListener('pointermove',drag);window.removeEventListener('pointerdown',start);window.removeEventListener('pointerup',end);window.removeEventListener('pointercancel',end);window.removeEventListener('blur',end);document.removeEventListener('pointerleave',leave);document.removeEventListener('visibilitychange',visibility);reduced.removeEventListener('change',motion);renderer.domElement.removeEventListener('webglcontextlost',lost);renderer.domElement.removeEventListener('webglcontextrestored',restored);
-      disposeTree(world,[surface,structureSurface]);surface.dispose();structureSurface.dispose();key.shadow.dispose();environment.dispose();shadowMap.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();commandRef.current=null;updateRef.current=null;
-    };
+    return teardown;
   },[commandRef,onReady,onFailed]);
   return <div className={`world-canvas ${state.shot==='hidden'?'world-canvas-hidden':''}`} ref={host} aria-hidden="true"/>;
 }

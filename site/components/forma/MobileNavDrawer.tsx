@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import { PageLink as Link } from './PageLink';
 import {
   Sheet,
   SheetContent,
+  SheetClose,
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
@@ -17,6 +19,7 @@ import {
   ShoppingBag,
   Globe,
   MapPin,
+  X,
 } from 'lucide-react';
 import type { CartItem } from './Flows';
 
@@ -44,6 +47,10 @@ export function MobileNavDrawer({
   onOpenAccount,
 }: MobileNavDrawerProps) {
   const t = (en: string, arabic: string) => (ar ? arabic : en);
+
+  useEffect(() => {
+    onOpenChange(false);
+  }, [route, onOpenChange]);
 
   const navItems = [
     {
@@ -79,16 +86,18 @@ export function MobileNavDrawer({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
+        id="mobile-nav-drawer"
         side={ar ? 'right' : 'left'}
-        className="mobile-nav-sheet w-[88vw] max-w-sm p-5 sm:p-6 flex flex-col justify-between overflow-y-auto overscroll-contain max-h-[100dvh]"
+        className="mobile-nav-sheet"
         dir={ar ? 'rtl' : 'ltr'}
-        style={{
-          paddingTop: 'max(1.25rem, calc(0.75rem + env(safe-area-inset-top, 0px)))',
-          paddingBottom: 'max(1.25rem, calc(0.75rem + env(safe-area-inset-bottom, 0px)))',
-          paddingInlineStart: 'max(1.25rem, calc(0.75rem + env(safe-area-inset-inline-start, 0px)))',
-          paddingInlineEnd: 'max(1.25rem, calc(0.75rem + env(safe-area-inset-inline-end, 0px)))',
-        }}
+        showCloseButton={false}
       >
+        <SheetClose
+          className="mobile-nav-close"
+          aria-label={t('Close navigation menu', 'إغلاق قائمة التنقل')}
+        >
+          <X size={20} />
+        </SheetClose>
         <div>
           {/* Header Brand */}
           <div className="flex items-center justify-between pb-5 border-b border-border/40">

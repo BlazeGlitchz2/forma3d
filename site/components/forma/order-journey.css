@@ -3,7 +3,7 @@
 .journey-page {
   max-width: 1480px;
   margin: auto;
-  padding: calc(var(--header-height, 74px) + clamp(28px, 3vw, 48px)) var(--gutter) 48px;
+  padding: calc(var(--header-height, 74px) + clamp(28px, 3vw, 48px)) var(--gutter) max(48px, calc(24px + env(safe-area-inset-bottom, 0px)));
   position: relative;
   z-index: 4;
 }
@@ -26,7 +26,7 @@
 }
 
 .journey-heading h1 {
-  font-size: clamp(38px, 5.4vw, 76px);
+  font-size: clamp(38px, 4.6vw + 12px, 88px);
   line-height: 1.08;
   font-weight: 650;
   letter-spacing: -.055em;
@@ -66,7 +66,7 @@
 }
 
 .journey-object-stage {
-  height: 360px;
+  height: clamp(330px, 28vw, 430px);
   position: relative;
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 36%, #f8f9f4 0, #e3e5df 65%, #d7dcd7 100%);
@@ -1862,4 +1862,203 @@
   .journey-step-content { animation: none; }
   .journey-button,
   .journey-object-stage { transition: none; }
+}
+
+/* ============================================================
+   Cross-device polish: overflow, keyboard, touch, safe areas
+   ============================================================ */
+
+/* Never let long codes, names, or machine strings overflow their column */
+.journey-order-code > div { min-width: 0; }
+.journey-order-code strong,
+.tracking-journey .journey-heading p,
+.journey-showcase-title h2,
+.journey-cart-info > strong,
+.journey-locations strong,
+.journey-locations small,
+.journey-review strong,
+.tracking-journey-timeline strong,
+.journey-order-manifest > div > span { overflow-wrap: anywhere; }
+.journey-cart-info,
+.journey-showcase-title > div { min-width: 0; }
+
+/* Keep the focused field visible above the on-screen keyboard */
+.journey-form input,
+.journey-form textarea,
+.journey-form select,
+.journey-locations > label,
+.journey-acknowledgment { scroll-margin-block-start: 12vh; scroll-margin-block-end: 42vh; }
+
+/* Programmatically focused headings should not show a ring */
+.journey-receipt h2:focus { outline: none; }
+
+/* Touch devices: reliable taps and no accidental double-tap zoom */
+.journey-page button,
+.journey-page a,
+.journey-page summary,
+.support-dialog button,
+.support-dialog a,
+.support-dialog summary,
+.support-inbox button,
+.support-inbox summary,
+.support-inbox a { touch-action: manipulation; }
+
+@media (hover: none) {
+  .journey-order-code button:hover { background: var(--white); border-color: #d5d9ca; }
+  .journey-remove:hover { background: transparent; color: #6b7264; }
+}
+
+/* Tracking: refresh state, alert banner, expandable history affordance */
+.tracking-updated { font-size: 11.5px; color: var(--muted-foreground); margin-top: 10px; }
+.tracking-alert { display: flex; gap: 12px; align-items: flex-start; background: #fbe9e3; border: 1px solid #ecc4b7; color: #8f3220; border-radius: 16px; padding: 18px 20px; margin-bottom: 20px; }
+.tracking-alert > svg { flex-shrink: 0; margin-top: 2px; }
+.tracking-alert strong { display: block; font-size: 14.5px; font-weight: 600; }
+.tracking-alert p { font-size: 12.5px; line-height: 1.75; margin: 6px 0 4px; }
+.tracking-journey-history summary > span { font-size: 18px; line-height: 1; transition: transform 180ms var(--ease); }
+.tracking-journey-history[open] summary > span { transform: rotate(45deg); }
+.tracking-journey .journey-heading p { min-width: 0; max-width: 46ch; }
+.tracking-code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .06em; text-transform: uppercase; }
+.tracking-journey .journey-heading > button { align-self: flex-start; }
+
+/* Support modal sizing, scroll containment, unread badge */
+[data-slot=dialog-content].support-dialog { max-width: min(896px, calc(100% - 2rem)); }
+.support-chat-history { height: clamp(180px, 40dvh, 320px); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.support-chips button { min-height: 44px; touch-action: manipulation; }
+.support-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vermilion); display: inline-block; margin-inline-start: 4px; }
+.support-dialog [data-slot=tabs-trigger] { min-height: 44px; touch-action: manipulation; }
+.support-dialog [data-slot=dialog-close] { width: 44px; height: 44px; display: grid; place-items: center; }
+.support-dialog input,
+.support-dialog textarea,
+.support-dialog select { scroll-margin-block-start: 10vh; scroll-margin-block-end: 40vh; }
+
+/* Support inbox: statuses, meta rows, responsive summary */
+.support-inbox-heading > div { min-width: 0; }
+.support-inbox-count { display: inline-flex; align-items: center; font-size: 12px; color: var(--cobalt); margin-top: 10px; font-weight: 500; }
+.support-inbox-loading { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted-foreground); margin: 18px 0; }
+.support-inbox-contact { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; }
+.support-inbox-contact > a { margin: 0; }
+.support-inbox-ticket summary > div { min-width: 0; }
+.support-inbox-ticket summary time { display: block; font-size: 11px; color: var(--muted-foreground); margin-top: 5px; }
+.support-inbox-ticket summary strong,
+.support-inbox-ticket summary div > span { overflow-wrap: anywhere; }
+.support-inbox-ticket.is-open summary { box-shadow: inset 3px 0 0 var(--cobalt); }
+[dir="rtl"] .support-inbox-ticket.is-open summary { box-shadow: inset -3px 0 0 var(--cobalt); }
+.support-ticket-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; white-space: nowrap; background: #ecebe3; color: #5f6156; }
+.support-ticket-status > i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.support-ticket-status.is-open { background: #e6e9fd; color: #2548e8; }
+.support-ticket-status.is-in_progress { background: #fdf1d7; color: #8a6414; }
+.support-ticket-status.is-resolved { background: #e5efe0; color: #3c5a33; }
+.support-ticket-status.is-closed { background: #ecebe3; color: #6b6b60; }
+
+/* Small phones: sticky checkout actions cushioned for the home indicator */
+@media (max-width: 760px) {
+  .journey-form-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    margin-top: 18px;
+    margin-inline: -16px;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom, 12px));
+    background: linear-gradient(to top, var(--white) 72%, color-mix(in srgb, var(--white) 0%, transparent));
+  }
+  .journey-form-actions .journey-previous,
+  .journey-form-actions .journey-button { min-height: 52px; }
+  .journey-object-stage:not(.journey-stage-compact) { height: clamp(220px, 62vw, 300px); }
+  .journey-heading h1 { font-size: clamp(30px, 9.6vw, 42px); }
+  .cart-sheet[data-slot=sheet-content] .journey-cart-empty { padding-bottom: max(28px, calc(20px + env(safe-area-inset-bottom, 0px))); }
+}
+
+@media (max-width: 640px) {
+  [data-slot=dialog-content].support-dialog {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    translate: none;
+    transform: none;
+    border-radius: 20px 20px 0 0;
+    max-height: 94dvh;
+    padding: 20px 16px max(16px, env(safe-area-inset-bottom, 16px));
+    animation: none;
+  }
+  [data-slot=dialog-content].support-dialog[data-state=open] { animation: support-sheet-in 240ms var(--ease); }
+  [data-slot=dialog-content].support-dialog > [data-slot=dialog-close] { top: 10px; inset-inline-end: 10px; }
+  .support-chat-history { height: clamp(170px, 34dvh, 280px); }
+  .support-dialog [data-slot=tabs-list] { height: auto; overflow-x: auto; }
+  .support-dialog [data-slot=tabs-trigger] { font-size: 11px; padding-inline: 6px; }
+  .support-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; margin-inline: -4px; padding-inline: 4px; }
+  .support-chips button { flex: 0 0 auto; }
+  .support-inbox-heading { flex-direction: column; gap: 14px; }
+  .support-inbox-ticket summary { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .support-inbox-content { padding: 0 16px 18px; }
+}
+
+@keyframes support-sheet-in {
+  from { transform: translateY(18px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Narrowest phones */
+@media (max-width: 380px) {
+  .journey-form-actions { margin-inline: -13px; padding-inline: 13px; }
+  .journey-error { font-size: 12.5px; padding: 10px 12px; }
+  .journey-showcase-title h2 { font-size: 21px; }
+  .tracking-journey .journey-heading h1 { font-size: 30px; }
+}
+
+/* Tablets portrait: stack the two-column journey layout before it gets cramped */
+@media (min-width: 761px) and (max-width: 900px) {
+  .journey-layout { grid-template-columns: 1fr; gap: 24px; }
+  .journey-object-stage:not(.journey-stage-compact) { height: clamp(280px, 44vw, 340px); }
+  .journey-heading { margin-bottom: 24px; }
+}
+
+/* Tablets landscape and small laptops */
+@media (min-width: 901px) and (max-width: 1100px) {
+  .journey-object-stage:not(.journey-stage-compact) { height: clamp(300px, 34vw, 360px); }
+  .journey-panel { padding: clamp(22px, 3vw, 34px); }
+}
+
+/* Landscape phones: reclaim vertical space, keep actions reachable */
+@media (orientation: landscape) and (max-height: 520px) {
+  .journey-page { padding-top: 14px; padding-bottom: max(18px, env(safe-area-inset-bottom, 0px)); }
+  .journey-heading { margin-bottom: 16px; }
+  .journey-heading h1 { font-size: clamp(26px, 6vh, 36px); }
+  .journey-object-stage:not(.journey-stage-compact) { height: clamp(180px, 52vh, 260px); }
+  .journey-form-actions { position: static; margin-inline: 0; padding: 14px 0 0; background: none; }
+  .journey-cart-footer { padding-bottom: max(12px, env(safe-area-inset-bottom, 12px)); }
+  .support-chat-history { height: clamp(140px, 42dvh, 240px); }
+  [data-slot=dialog-content].support-dialog { max-height: 96dvh; }
+}
+
+/* Very wide screens: cap line length and scale hero typography */
+@media (min-width: 1800px) {
+  .journey-page { max-width: 1640px; }
+  .journey-heading h1,
+  .tracking-journey .journey-heading h1 { font-size: clamp(60px, 4.6vw, 92px); }
+  .journey-object-stage:not(.journey-stage-compact) { height: 460px; }
+  .journey-step-content h2,
+  .journey-receipt h2 { font-size: clamp(28px, 2vw, 38px); }
+  .journey-panel { padding: clamp(32px, 2.4vw, 52px); }
+  .journey-order-manifest > div,
+  .journey-showcase-total,
+  .journey-subtotal { font-size: 15px; }
+}
+
+/* Volume pricing feedback */
+.journey-line-saving {
+  color: #1d7a4a !important;
+  font-weight: 600;
+}
+.journey-volume-saving {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1d7a4a;
 }

@@ -38,16 +38,24 @@ const WorldRenderer=lazy(()=>import('./WorldRenderer'));
 
 export function MaterialWorld({children,route}:{children:ReactNode;route:string}) {
   const [scene,setSceneState]=useState<WorldScene>({shot:route==='home'?'hero':route==='make'?'lab':route==='shop'?'archive':'hidden',tone:route==='home'||route==='shop'?'cobalt':route==='make'?'ink':'paper',kind:'vase',color:'#efeee5'});
-  const setScene=useCallback((next:WorldScene)=>setSceneState(previous=>{
-    const keys=new Set([...Object.keys(previous),...Object.keys(next)]);
-    return [...keys].every(key=>previous[key as keyof WorldScene]===next[key as keyof WorldScene])?previous:next;
-  }),[]);
   const [ready,setReady]=useState(false),[failed,setFailed]=useState(false);
+  // The WebGL context is only worth creating once a route actually needs it.
+  const [worldMounted,setWorldMounted]=useState(route==='home'||route==='make'||route==='shop');
+  const setScene=useCallback((next:WorldScene)=>{
+    if(next.shot!=='hidden')setWorldMounted(true);
+    setSceneState(previous=>{
+      // Shallow, allocation-free commit check; scene updates run on every scroll shot.
+      let same=true;
+      for(const key in previous)if(previous[key as keyof WorldScene]!==next[key as keyof WorldScene]){same=false;break;}
+      if(same)for(const key in next)if(!(key in (previous as object))){same=false;break;}
+      return same?previous:next;
+    });
+  },[]);
   const commandRef=useRef<((command:WorldCommand)=>void)|null>(null);
   const command=useCallback((value:WorldCommand)=>commandRef.current?.(value),[]);
   const value=useMemo(()=>({scene,setScene,command,ready,failed}),[scene,setScene,command,ready,failed]);
   return <Context.Provider value={value}><div className={`material-world world-tone-${scene.tone}`} data-world-shot={scene.shot}>
-    {route!=='admin'&&<Suspense fallback={null}><WorldRenderer scene={scene} commandRef={commandRef} onReady={setReady} onFailed={setFailed}/></Suspense>}
+    {route!=='admin'&&worldMounted&&<Suspense fallback={null}><WorldRenderer scene={scene} commandRef={commandRef} onReady={setReady} onFailed={setFailed}/></Suspense>}
     <div className="world-grain" aria-hidden="true"/>
     {children}
   </div></Context.Provider>;

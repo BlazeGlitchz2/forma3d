@@ -184,6 +184,7 @@ export default function Storefront({ route = 'home' }: { route?: string }) {
                 onOpenAccount={() => setAccountOpen(true)}
                 onOpenMobileMenu={() => setMobileMenuOpen(true)}
                 onToggleLanguage={toggleLanguage}
+                menuOpen={mobileMenuOpen}
               />
 
               <main id="main">

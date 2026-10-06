@@ -39,4 +39,12 @@
   .object-viewport .viewer-secondary{inset-inline-end:8px;bottom:14px}
   .object-viewport .drag-hint{display:none}
 }
-@media(prefers-reduced-motion:reduce){.object-viewport,.object-viewport *{animation:none!important;transition:none!important}}
+/* Quiet scan-line skeleton while geometry prepares; no layout shift, no JS. */
+.object-viewport.model-loading .model-fallback::after{content:"";position:absolute;inset:6% 5%;pointer-events:none;background:linear-gradient(180deg,transparent 0%,rgba(37,72,232,.10) 46%,transparent 100%);background-size:100% 220%;animation:viewport-shimmer 1.9s linear infinite;mix-blend-mode:multiply}
+.object-viewport.model-loading .object-silhouette{opacity:.6;transition:opacity .3s ease}
+.object-viewport.object-unavailable .model-fallback p{box-shadow:0 6px 22px rgba(36,37,31,.12)}
+@keyframes viewport-shimmer{from{background-position:0 -120%}to{background-position:0 120%}}
+@media(prefers-reduced-motion:reduce){
+  .object-viewport,.object-viewport *{animation:none!important;transition:none!important}
+  .object-viewport.model-loading .model-fallback::after{display:none}
+}

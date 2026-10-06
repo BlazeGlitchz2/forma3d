@@ -1,9 +1,12 @@
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "./schema";
 
-let cfEnv: any = {};
+type CloudflareD1Env = { DB?: D1Database };
+
+let cfEnv: CloudflareD1Env = {};
 try {
-  // @ts-ignore - only resolvable under workerd / vinext; Vercel Node.js falls to catch
+  // "cloudflare:workers" is only resolvable under workerd / vinext at runtime.
+  // The module is declared by @cloudflare/workers-types, so no ts-ignore is needed.
   cfEnv = (await import("cloudflare:workers")).env;
 } catch {
   cfEnv = {};

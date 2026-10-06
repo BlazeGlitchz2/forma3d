@@ -85,7 +85,7 @@ The system prompt equips the model with complete local studio knowledge:
   - Standard (0.20 mm) — Everyday balanced quality
   - Smooth (0.16 mm) — Clean aesthetic finish
   - Detail (0.12 mm) — Fine miniatures & display
-- **Pricing**: Minimum print fee SAR 25, based on exact PLA weight (grams), print duration, and quality multiplier.
+- **Pricing**: Minimum print fee SAR 39, based on exact PLA weight (grams at SAR 0.55/g), print duration (SAR 3.50/hour), and quality multiplier, with automatic volume savings of 5% (2+), 10% (5+) and 15% (10+).
 - **Fulfillment**:
   - Studio Pickup in Jubail: **100% Free (SAR 0)**.
   - Pickup only: arrange a meeting at Alhussan International School or Al Huwaylat directly with studio staff.

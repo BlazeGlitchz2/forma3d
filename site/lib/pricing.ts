@@ -1,7 +1,9 @@
 import {defaultConfig,qualityOptions,fitsPrinter,pricingPolicy,type PrintConfig,type Product,type Material} from './catalog.ts';
 export type Stats={dimensions:[number,number,number];volume:number;triangles:number};
 export type Item={productId?:string;uploadId?:string;name:string;config:PrintConfig};
-export type Quote={total:number;grams:number;minutes:number;source:'estimate'|'slicer';breakdown:{setup:number;material:number;machine:number;support:number;finishing:number;delivery:number};config:PrintConfig;dimensions:number[]};
+export type Quote={total:number;grams:number;minutes:number;source:'estimate'|'slicer';breakdown:{setup:number;material:number;machine:number;support:number;finishing:number;delivery:number;discount:number;discountRate:number};config:PrintConfig;dimensions:number[]};
+/** Volume discount for a configured order line, based on its quantity. */
+export function quantityDiscountRate(quantity:number){return pricingPolicy.quantityDiscounts.find(tier=>quantity>=tier.min)?.rate??0}
 export class InsufficientStockError extends Error{constructor(message='Not enough filament for this quantity. Choose fewer prints or another material.'){super(message);this.name='InsufficientStockError'}}
 export function requireMaterialStock(material:Material,totalGrams:number){if(!Number.isFinite(totalGrams)||totalGrams<=0)throw new Error('The print analysis returned invalid results.');if(totalGrams/1000>material.stock)throw new InsufficientStockError()}
 /** Quote grams already include the selected quantity and any support allowance. */
@@ -23,9 +25,14 @@ export function calculateQuote(config:PrintConfig,material:Material,stats:Stats,
  const supportGrams=!sliced&&!product&&c.supports==='auto'?baseGrams*.1:0;const grams=baseGrams+supportGrams;
  const minutes=sliced?.minutes??(product?.estimatedMinutes?product.estimatedMinutes*Math.pow(c.size/100,3)*quality.multiplier*strengthRatio:Math.max(15,grams*3.4*quality.multiplier));if(!Number.isFinite(grams)||!Number.isFinite(minutes)||grams<=0||minutes<=0||grams>10000||minutes>100000)throw new Error('The print analysis returned invalid results.');
  if(options.checkStock!==false)requireMaterialStock(material,grams*c.quantity);
- const breakdown={setup:0,material:Math.round(baseGrams*pricingPolicy.perGram*100)/100,machine:Math.round(minutes/60*pricingPolicy.perHour*100)/100,support:Math.round(supportGrams*pricingPolicy.perGram*100)/100,finishing:c.finishing==='sanded'?pricingPolicy.finishing:0,delivery:0};
- const custom=Math.max(pricingPolicy.minimum,(breakdown.material+breakdown.machine+breakdown.support)*c.quantity)+breakdown.finishing*c.quantity+breakdown.delivery;
- // Catalog base prices are editable studio prices; generated defaults use the researched selling policy.
- const catalog=product?Math.max(pricingPolicy.minimum,(product.price*Math.pow(c.size/100,3)*(material.id==='petg'?1.18:1)*quality.multiplier*({light:.95,everyday:1,strong:1.15,solid:1.45}[c.strength as 'light']??1))*c.quantity)+breakdown.finishing*c.quantity+breakdown.delivery:custom;
- return{total:Math.round(catalog*100)/100,grams:Math.round(grams*c.quantity*10)/10,minutes:Math.round(minutes*c.quantity),source:sliced?'slicer':'estimate',breakdown,config:c,dimensions};
+  const round2=(value:number)=>Math.round(value*100)/100;
+  const breakdown={setup:0,material:round2(baseGrams*pricingPolicy.perGram),machine:round2(minutes/60*pricingPolicy.perHour),support:round2(supportGrams*pricingPolicy.perGram),finishing:c.finishing==='sanded'?pricingPolicy.finishing:0,delivery:0,discount:0,discountRate:0};
+  // Catalog base prices are editable studio prices; generated defaults use the researched selling policy.
+  const unitPrint=product?product.price*Math.pow(c.size/100,3)*(material.id==='petg'?1.18:1)*quality.multiplier*({light:.95,everyday:1,strong:1.15,solid:1.45}[c.strength as 'light']??1):breakdown.material+breakdown.machine+breakdown.support;
+  const discountRate=quantityDiscountRate(c.quantity);
+  const gross=unitPrint*c.quantity;
+  const discount=round2(gross*discountRate);
+  const print=Math.max(pricingPolicy.minimum,round2(gross-discount));
+  const total=round2(print+breakdown.finishing*c.quantity+breakdown.delivery);
+  return{total,grams:Math.round(grams*c.quantity*10)/10,minutes:Math.round(minutes*c.quantity),source:sliced?'slicer':'estimate',breakdown:{...breakdown,discount,discountRate},config:c,dimensions};
 }

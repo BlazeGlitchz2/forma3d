@@ -389,7 +389,7 @@
     gap: 14px;
     max-height: 92vh !important;
     max-height: 92dvh !important;
-    padding: 20px 16px 24px !important;
+    padding: 20px 16px max(24px, calc(16px + env(safe-area-inset-bottom, 0px))) !important;
     border-radius: 20px !important;
     width: calc(100vw - 20px) !important;
   }
@@ -398,6 +398,7 @@
     max-height: 88px;
     order: 0;
     padding: 12px 16px;
+    padding-inline-end: 52px;
     border-radius: 16px;
   }
   .account-studio-art::before {
@@ -429,7 +430,7 @@
     width: calc(100vw - 20px) !important;
     max-height: 92vh !important;
     max-height: 92dvh !important;
-    padding: 20px 16px 24px !important;
+    padding: 20px 16px max(24px, calc(16px + env(safe-area-inset-bottom, 0px))) !important;
     border-radius: 20px !important;
   }
   .support-dialog > .support-header {
@@ -443,13 +444,29 @@
     font-size: 12px;
   }
   .support-dialog .chat-history-box {
-    height: clamp(190px, 28vh, 250px);
-    height: clamp(190px, 28dvh, 250px);
+    height: clamp(140px, 20vh, 200px);
+    height: clamp(140px, 20dvh, 200px);
     padding: 12px;
   }
   .support-dialog .chat-history-box > div > div:last-child {
     max-width: 90%;
     padding: 10px 13px;
+  }
+  .support-dialog .support-chips {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 4px !important;
+    gap: 6px !important;
+    overscroll-behavior-x: contain !important;
+  }
+  .support-dialog .support-chips::-webkit-scrollbar {
+    display: none !important;
+  }
+  .support-dialog .support-chips > button {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
   }
   .support-dialog form.flex {
     flex-direction: row;
@@ -486,4 +503,198 @@
   }
   .support-header h2 { font-size: 22px; }
   .account-header h2 { font-size: 22px; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin dialogs, editors and long-value ergonomics                    */
+/* ------------------------------------------------------------------ */
+
+/* The 48px text-input skin must never deform native checkboxes. */
+.account-dialog input[type="checkbox"],
+.account-dialog input[type="radio"],
+.support-dialog input[type="checkbox"],
+.support-dialog input[type="radio"],
+.order-dialog input[type="checkbox"],
+.order-dialog input[type="radio"],
+.catalog-dialog input[type="checkbox"],
+.catalog-dialog input[type="radio"] {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  padding: 0 !important;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+/* Order ids, phones, references and JSON values wrap instead of overflowing. */
+.account-dialog .font-mono,
+.account-dialog a,
+.account-dialog [dir="ltr"],
+.admin-payment-panel input,
+.admin-payment-panel strong,
+.order-dialog .order-specs span,
+.order-dialog .order-specs strong,
+.order-dialog .order-specs a,
+.order-dialog .history-list span,
+.order-dialog .history-list p,
+.catalog-editor input,
+.catalog-editor textarea {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Desktop scroll behaviour for the wide admin dialogs. */
+.catalog-dialog,
+.order-dialog {
+  max-height: 90dvh !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: thin;
+}
+
+.admin-payment-panel > strong { flex-wrap: wrap; }
+.admin-payment-panel input { width: 100%; }
+.admin-payment-panel .journey-button { min-height: 48px; }
+
+/* 44px tap targets inside the catalog editors. */
+.catalog-dialog .editor-choices > label,
+.catalog-dialog .editor-switch,
+.catalog-dialog .custom-swatches .secondary-button,
+.catalog-dialog .editor-assets > .secondary-button {
+  min-height: 44px;
+}
+.catalog-dialog .custom-swatches > div { align-items: center; }
+
+/* Inner order list keeps its own scroll from chaining to the dialog. */
+.account-dialog .overscroll-contain { overscroll-behavior: contain; }
+
+/* ------------------------------------------------------------------ */
+/* Mobile: full-height sheets and sticky primary actions               */
+/* ------------------------------------------------------------------ */
+@media (max-width: 720px) {
+  /* body prefix keeps these important rules ahead of the later globals sheet. */
+  body .account-dialog,
+  body .support-dialog,
+  body .order-dialog,
+  body .catalog-dialog {
+    position: fixed !important;
+    inset: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    transform: none !important;
+    translate: none !important;
+    scale: none !important;
+    animation: none !important;
+    padding-top: max(18px, env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)) !important;
+    padding-left: max(14px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(14px, env(safe-area-inset-right, 0px)) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .order-dialog,
+  .catalog-dialog { display: block !important; }
+
+  /* Keep the pinned close button below the notch and reachable at 44px. */
+  .account-dialog > [data-slot="dialog-close"],
+  .support-dialog > [data-slot="dialog-close"],
+  .order-dialog > [data-slot="dialog-close"],
+  .catalog-dialog > [data-slot="dialog-close"] {
+    top: calc(10px + env(safe-area-inset-top, 0px) + var(--studio-scroll-y, 0px)) !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+  /* Admin sheets do not pin via the scroll variable, so fix the button. */
+  .order-dialog > [data-slot="dialog-close"],
+  .catalog-dialog > [data-slot="dialog-close"] {
+    position: fixed !important;
+    top: max(10px, env(safe-area-inset-top, 0px)) !important;
+    display: grid !important;
+    place-items: center !important;
+    padding: 0 !important;
+    border: 1px solid rgba(36, 37, 31, .14) !important;
+    border-radius: 50% !important;
+    background: color-mix(in srgb, var(--paper) 90%, transparent) !important;
+    color: var(--ink) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .12);
+  }
+  [dir="rtl"] .order-dialog > [data-slot="dialog-close"],
+  [dir="rtl"] .catalog-dialog > [data-slot="dialog-close"] {
+    right: auto !important;
+    left: 14px !important;
+  }
+  :not([dir="rtl"]) .order-dialog > [data-slot="dialog-close"],
+  :not([dir="rtl"]) .catalog-dialog > [data-slot="dialog-close"] {
+    left: auto !important;
+    right: 14px !important;
+  }
+
+  /* Primary form actions stay reachable while the sheet scrolls. */
+  .account-dialog .account-submit {
+    position: sticky;
+    bottom: max(4px, env(safe-area-inset-bottom, 0px));
+    z-index: 6;
+    box-shadow: 0 -12px 22px -14px rgba(36, 37, 31, .45);
+  }
+  .catalog-dialog > .primary-button {
+    position: sticky;
+    bottom: max(6px, env(safe-area-inset-bottom, 0px));
+    z-index: 7;
+    box-shadow: 0 -12px 24px -14px rgba(0, 0, 0, .4);
+  }
+  .admin-payment-panel { padding: 16px !important; }
+  .admin-payment-panel .journey-button { width: 100%; }
+
+  /* Editors become single-column and readable on narrow screens. */
+  .catalog-dialog .editor-grid { grid-template-columns: 1fr !important; }
+  .catalog-dialog .custom-swatches > div { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .catalog-dialog .custom-swatches > div > button { grid-column: 1 / 3; }
+  .catalog-dialog .custom-swatches input[type="color"] {
+    width: 100% !important;
+    min-height: 48px !important;
+    padding: 6px !important;
+  }
+  .catalog-dialog .editor-assets { flex-direction: column; align-items: stretch; }
+  .catalog-dialog .editor-assets > .secondary-button { width: 100%; }
+
+  .order-dialog .admin-order-grid { grid-template-columns: 1fr !important; gap: 20px !important; }
+  .order-dialog .admin-model { height: 250px; }
+  .order-dialog .history-list > div { flex-wrap: wrap; }
+
+  .profile-editor-head { display: none !important; }
+  .profile-editor > div:not(.profile-editor-head) { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .profile-editor input { min-height: 48px !important; padding: 12px 14px !important; border-radius: 10px !important; }
+  .profile-editor > .primary-button { width: 100%; }
+}
+
+/* Short landscape phones: collapse the decorative art column first. */
+@media (max-height: 560px) and (orientation: landscape) {
+  .account-dialog > .account-studio-art { display: none !important; }
+  .account-dialog {
+    display: flex !important;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .account-dialog > .account-header { padding-bottom: 8px; }
+  .account-header h2,
+  .support-header h2 { font-size: 22px; }
+  .support-dialog .chat-history-box {
+    height: clamp(120px, 30vh, 180px);
+    height: clamp(120px, 30dvh, 180px);
+  }
 }

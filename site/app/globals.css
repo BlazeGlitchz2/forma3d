@@ -48,3 +48,36 @@
 @media(min-width:761px){.arrival-heading h1 span:last-child{font-stretch:100%;white-space:nowrap}.arrival-intro{position:relative;z-index:4}}
 
 .sr-only,input.sr-only{position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;inset:auto!important}
+
+/* Production hardening: touch/overscroll defaults, safe areas, below-fold paint skipping. */
+html{text-rendering:optimizeLegibility;-webkit-tap-highlight-color:transparent;overscroll-behavior-x:none}
+body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:contain}
+.noscript-notice{background:var(--ink);color:var(--white);padding:16px var(--gutter);font-size:14px;line-height:1.6;text-align:center}
+#main:focus{outline:none}
+.skip-link:focus-visible{top:max(16px,env(safe-area-inset-top,0px));outline:2px solid var(--paper);outline-offset:2px}
+@supports (padding:max(0px)){
+ .site-header{padding-left:max(var(--gutter),env(safe-area-inset-left,0px));padding-right:max(var(--gutter),env(safe-area-inset-right,0px))}
+ .material-world .site-header{padding-left:max(var(--world-gutter,var(--gutter)),env(safe-area-inset-left,0px));padding-right:max(var(--world-gutter,var(--gutter)),env(safe-area-inset-right,0px))}
+ .safe-top{padding-top:max(0px,env(safe-area-inset-top,0px))}
+ .safe-bottom{padding-bottom:max(0px,env(safe-area-inset-bottom,0px))}
+ .safe-x{padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+}
+@supports (content-visibility:auto){
+ /* Skip painting off-screen static regions; the WebGL world scenes stay live. */
+ .site-shell>footer{content-visibility:auto;contain-intrinsic-size:auto 240px}
+ .route-home .world-home>.world-shot:nth-child(n+3){content-visibility:auto;contain-intrinsic-size:auto 100vh;contain-intrinsic-size:auto 100svh}
+}
+@media (hover:none){
+ .header-action-button:hover,.language-button:hover,.order-button:hover,.parade-object:hover .object-open,.object-gallery-piece:hover .gallery-open{transform:none;box-shadow:none}
+ .cinema-link:hover svg{transform:none}
+ [dir=rtl] .cinema-link:hover svg{transform:scaleX(-1)}
+}
+@media (orientation:landscape) and (max-height:560px){
+ .arrival-scene{min-height:520px;padding-block:24px 20px}
+ .world-shot{min-height:560px}
+ .world-shot-top{top:calc(var(--header-height,64px) + env(safe-area-inset-top,0px) + 8px)}
+}
+@media (max-width:340px){
+ :root{--gutter:14px}
+ .header-actions{gap:4px}
+}

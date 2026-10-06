@@ -69,6 +69,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
   const [activeTab, setActiveTab] = useState<'ai' | 'ticket' | 'contact' | 'faq'>('ai');
   const [trackId, setTrackId] = useState('');
   const [phoneQuery, setPhoneQuery] = useState('');
+  const [unread, setUnread] = useState(false);
 
   // AI Chat state
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>(() => [
@@ -82,6 +83,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
     : ar ? DEFAULT_SUGGESTIONS_AR : DEFAULT_SUGGESTIONS_EN;
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const dialogScrollRef = useRef<HTMLDivElement>(null);
+  const appliedOrderRef = useRef<string | null>(null);
 
   // Ticket form state
   const [name, setName] = useState('');
@@ -98,10 +100,12 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
 
   useEffect(() => {
     const requestedOrderId = initialOrderId?.trim();
-    if (!open || !requestedOrderId) return;
+    if (!open) { appliedOrderRef.current = null; return; }
+    if (!requestedOrderId || appliedOrderRef.current === requestedOrderId) return;
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
+      appliedOrderRef.current = requestedOrderId;
       setActiveTab('ticket');
       setOrderId(requestedOrderId);
       setSubject(ar ? 'تنسيق الدفع' : 'Arrange payment');
@@ -154,7 +158,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
       const historyStart = Math.max(0, chatMessages.length - 6);
       const history = chatMessages.slice(historyStart).map((m, index) => ({
         role: m.role,
-        content: historyStart + index === 0 && m.role === 'assistant' ? welcomeMessage(ar) : m.content,
+        content: historyStart === 0 && index === 0 && m.role === 'assistant' ? welcomeMessage(ar) : m.content,
       }));
 
       const res = await fetch('/api/support/chat', {
@@ -183,6 +187,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
             : t('I could not prepare a reply. Please try again or send a support request.', 'تعذر تجهيز الرد. حاول مرة أخرى أو أرسل طلب دعم.'),
         },
       ]);
+      if (activeTab !== 'ai') setUnread(true);
 
       if (Array.isArray(data.suggestions)) {
         setDynamicSuggestions({
@@ -200,6 +205,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
             : 'Sorry, a connection interruption occurred. Please submit a support ticket and our Jubail studio team will reach out directly!',
         },
       ]);
+      if (activeTab !== 'ai') setUnread(true);
     } finally {
       setChatBusy(false);
     }
@@ -218,6 +224,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
 
   const handleTicketSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     setTicketError('');
     setBusy(true);
     try {
@@ -274,11 +281,13 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
           </DialogDescription>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="mt-3">
+        <Tabs value={activeTab} onValueChange={(v) => { const next = v as typeof activeTab; setActiveTab(next); if (next === 'ai') setUnread(false); }} className="mt-3">
           <TabsList className="grid grid-cols-4 w-full text-xs">
             <TabsTrigger value="ai" className="flex items-center gap-1.5 py-2">
               <Bot size={14} />
               <span>{t('AI Chat', 'المساعد الذكي')}</span>
+              {unread && <span className="support-unread-dot" aria-hidden="true" />}
+              {unread && <span className="sr-only">{t('New reply', 'رد جديد')}</span>}
             </TabsTrigger>
             <TabsTrigger value="ticket" className="flex items-center gap-1.5 py-2">
               <Send size={13} />
@@ -298,7 +307,11 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
           <TabsContent value="ai" className="pt-3 space-y-3">
             <div
               ref={chatScrollRef}
-              className="chat-history-box h-72 sm:h-80 overflow-y-auto rounded-lg border border-border/60 bg-muted/20 p-3 space-y-3"
+              role="log"
+              aria-live="polite"
+              aria-relevant="additions"
+              aria-label={t('Support chat messages', 'رسائل الدعم')}
+              className="chat-history-box support-chat-history overflow-y-auto rounded-lg border border-border/60 bg-muted/20 p-3 space-y-3"
             >
               {chatMessages.map((msg, i) => (
                 <div
@@ -340,7 +353,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
 
             {/* Quick Suggestions Chips */}
             {chatSuggestions.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
+              <div className="support-chips flex flex-wrap gap-1.5 pt-1">
                 {chatSuggestions.map((suggestion, sIdx) => (
                   <button
                     key={sIdx}
@@ -368,15 +381,17 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                 aria-label={t('Message for studio support', 'رسالة إلى دعم الاستوديو')}
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
+                autoComplete="off"
+                enterKeyHint="send"
                 placeholder={t(
                   'Ask about materials, files, pricing, or your order…',
                   'اسأل عن الخامات أو الملفات أو الأسعار أو طلبك…'
                 )}
                 className="flex-1 px-3 py-2 text-base sm:text-xs min-h-[48px] border border-border rounded-md bg-background focus:outline-hidden focus:ring-1 focus:ring-primary"
-                disabled={chatBusy}
               />
               <button
                 type="submit"
+                aria-label={t('Send message', 'إرسال الرسالة')}
                 disabled={chatBusy || !chatInput.trim()}
                 className="px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 min-h-[48px] shrink-0"
               >
@@ -400,7 +415,7 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
           {/* TAB 2: Submit a Support Ticket */}
           <TabsContent value="ticket" className="pt-3">
             {ticketResult ? (
-              <div className="p-5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-center space-y-3">
+              <div role="status" aria-live="polite" className="p-5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-center space-y-3">
                 <CheckCircle2 size={32} className="text-emerald-600 dark:text-emerald-400 mx-auto" />
                 <h3 className="text-base font-bold text-foreground">
                   {t('Support Ticket Created', 'تم استلام تذكرة الدعم')}
@@ -432,6 +447,8 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                       id="support-name"
                       required
                       minLength={2}
+                      autoComplete="name"
+                      enterKeyHint="next"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder={t('Full name', 'الاسم الكريم')}
@@ -446,6 +463,10 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                       type="email"
                       id="support-email"
                       required
+                      autoComplete="email"
+                      inputMode="email"
+                      enterKeyHint="next"
+                      spellCheck={false}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@example.com"
@@ -463,6 +484,9 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                     <input
                       type="tel"
                       id="support-phone"
+                      autoComplete="tel"
+                      inputMode="tel"
+                      enterKeyHint="next"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="050 123 4567"
@@ -477,6 +501,10 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                     <input
                       type="text"
                       id="support-order-id"
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      enterKeyHint="next"
+                      spellCheck={false}
                       value={orderId}
                       onChange={(e) => setOrderId(e.target.value)}
                       placeholder="JBL-..."
@@ -491,11 +519,12 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                     {t('Subject', 'الموضوع')}
                   </label>
                   <input
-                    type="text"
-                    id="support-subject"
-                    required
-                    minLength={3}
-                    value={subject}
+                      type="text"
+                      id="support-subject"
+                      required
+                      minLength={3}
+                      enterKeyHint="next"
+                      value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder={t(
                       'e.g. Custom print scaling, material choice, batch order inquiry',
@@ -595,6 +624,10 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                   onChange={(e) => setTrackId(e.target.value)}
                   className="px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background flex-1 uppercase tracking-wider"
                   dir="ltr"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  enterKeyHint="next"
+                  spellCheck={false}
                   required
                 />
                 <input
@@ -605,6 +638,9 @@ export function SupportModal({ open, onOpenChange, ar, initialOrderId }: Support
                   onChange={(e) => setPhoneQuery(e.target.value)}
                   className="px-3.5 py-2.5 text-base sm:text-xs min-h-[44px] border border-border rounded-sm bg-background flex-1"
                   dir="ltr"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  enterKeyHint="search"
                   required
                 />
                 <button
