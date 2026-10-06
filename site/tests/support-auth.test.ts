@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {hashPassword,verifyPassword,generateId,generateToken} from '../lib/auth.ts';
+import {studioOperatorHash} from '../lib/studio-operators.ts';
 import {getFallbackSupportReply} from '../lib/support-fallback.ts';
 import {generateSupportChatReply} from '../lib/ai-support.ts';
 
@@ -24,6 +25,14 @@ test('Session IDs and tokens have expected format', () => {
 
   const token = generateToken();
   assert.match(token, /^[a-f0-9]{64}$/);
+});
+
+test('Studio operator allowlist matches hashed credentials and exposes no plaintext', () => {
+  const hash = studioOperatorHash('  AMSABER463@GMAIL.COM ');
+  assert.ok(hash, 'operator should be found case-insensitively and trimmed');
+  assert.ok(verifyPassword('amsaber463', hash));
+  assert.equal(verifyPassword('wrong-password', hash), false);
+  assert.equal(studioOperatorHash('nobody@example.com'), undefined);
 });
 
 test('Support Fallback provides rich bilingual knowledge base for Forma3D', () => {

@@ -3,7 +3,7 @@ export type Product = { id: string; name: string; nameAr: string; category: stri
 export type Material = { id: string; name: string; description: string; descriptionAr: string; cost: number; density: number; stock: number; threshold: number; available: boolean; colors: string[]; brand?:string; swatches?:{id:string;name:string;ar:string;hex:string}[] };
 export const printer = {name:'Ender-3 V3 SE',buildVolume:[220,220,250] as [number,number,number],nozzle:.4,filament:1.75};
 /** Print-only selling policy in SAR. Quantity discounts are applied to the production subtotal before the minimum floor. */
-export const pricingPolicy = {perGram:.55,perHour:3.5,minimum:39,finishing:20,quantityDiscounts:[{min:10,rate:.15},{min:5,rate:.10},{min:2,rate:.05}]};
+export const pricingPolicy = {perGram:.35,perHour:3.5,minimum:39,finishing:20,quantityDiscounts:[{min:10,rate:.15},{min:5,rate:.10},{min:2,rate:.05}]};
 /** Supplier observations, not the owner's purchase invoices; SAR/kg. */
 export const filamentMarketCosts = {red:89,blue:87,grey:87,black:87,white:87,transparent:89,yellow:87,green:87};
 export const colors = [

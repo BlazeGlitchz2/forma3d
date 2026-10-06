@@ -36,7 +36,7 @@ STUDIO DETAILS & CAPABILITIES:
   4. Detail (0.12 mm layer height) - Ultra fine resolution for miniatures & collectibles
   - Optional finishing: Hand-sanded (+SAR 20).
 - Pricing Calculation:
-  - Material weight (grams of PLA) at SAR 0.55/gram + machine time at SAR 3.50/hour, with profile and strength multipliers.
+  - Material weight (grams of PLA) at SAR 0.35/gram + machine time at SAR 3.50/hour, with profile and strength multipliers.
   - Minimum print fee: SAR 39 per configured line.
   - Volume savings applied automatically: 2+ prints 5% off, 5+ prints 10% off, 10+ prints 15% off.
   - Transparent instant quotes are computed live on the Lab page (/lab) and Shop page (/objects).

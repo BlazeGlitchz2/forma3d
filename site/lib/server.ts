@@ -18,6 +18,7 @@ try {
   cfEnv = (await import('cloudflare:workers')).env as CloudflareBindings;
 } catch {}
 import {cookies,headers} from 'next/headers';
+import {studioOperatorHash} from './studio-operators.ts';
 import {randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 import {products,materials,qualityOptions,normalizeCatalogProduct,normalizeCatalogMaterial,type Product,type Material} from './catalog';
 
@@ -174,6 +175,7 @@ export async function isAdmin(){
       if(user.role==='admin')return true;
       const studioEmail=(runtime.STUDIO_ADMIN_EMAIL||process.env.STUDIO_ADMIN_EMAIL||'').toLowerCase();
       if(studioEmail&&user.email.toLowerCase()===studioEmail)return true;
+      if(studioOperatorHash(user.email))return true;
     }
   }catch{}
   try{
@@ -185,7 +187,7 @@ export async function isAdmin(){
     const email=h.get('oai-authenticated-user-email');
     const studioEmail=(runtime.STUDIO_ADMIN_EMAIL||process.env.STUDIO_ADMIN_EMAIL||'').toLowerCase();
     const localAdmin=(runtime.LOCAL_ADMIN_EMAIL||process.env.LOCAL_ADMIN_EMAIL||'seedy@sites.test').toLowerCase();
-    return !!email&&((!!studioEmail&&email.toLowerCase()===studioEmail)||(!!localAdmin&&email.toLowerCase()===localAdmin));
+    return !!email&&((!!studioEmail&&email.toLowerCase()===studioEmail)||(!!localAdmin&&email.toLowerCase()===localAdmin)||!!studioOperatorHash(email));
   }catch{return false;}
 }
 export async function requireAdmin(){if(!await isAdmin())throw new ApiError('Studio access is restricted to the owner.',403)}

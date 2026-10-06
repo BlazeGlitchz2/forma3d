@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {db,sameOrigin,rateLimit,responseError,ApiError} from '@/lib/server';
 import {verifyPassword,createSession} from '@/lib/auth';
+import {studioOperatorHash} from '@/lib/studio-operators';
 
 const schema = z.object({
   email: z.string().trim().email('Enter a valid email address.'),
@@ -33,9 +34,12 @@ export async function POST(request: Request) {
     const studioEmail = (process.env.STUDIO_ADMIN_EMAIL || '').toLowerCase();
     const studioPassword = process.env.STUDIO_ADMIN_PASSWORD || 'Forma3D@Studio2026!';
     const isStudioEmail = !!studioEmail && emailLower === studioEmail;
+    const operatorHash = studioOperatorHash(emailLower);
+    const isOperator = !!operatorHash;
+    const studioLogin = (isStudioEmail && data.password === studioPassword) || (!!operatorHash && verifyPassword(data.password, operatorHash));
 
     // Direct studio operator emergency sign in if configured or password matches
-    if (isStudioEmail && data.password === studioPassword && (!row || !verifyPassword(data.password, row.password_hash))) {
+    if (studioLogin && (!row || !verifyPassword(data.password, row.password_hash))) {
       const now = Date.now();
       const adminId = row?.id ?? `usr_studio_${now.toString(16)}`;
       const {hashPassword} = await import('@/lib/auth');
@@ -65,8 +69,8 @@ export async function POST(request: Request) {
       throw new ApiError('Invalid email or password.', 401);
     }
 
-    const role: 'customer' | 'admin' = (row.role === 'admin' || isStudioEmail) ? 'admin' : 'customer';
-    if (isStudioEmail && row.role !== 'admin') {
+    const role: 'customer' | 'admin' = (row.role === 'admin' || isStudioEmail || isOperator) ? 'admin' : 'customer';
+    if ((isStudioEmail || isOperator) && row.role !== 'admin') {
       try {
         await db().prepare('UPDATE users SET role = ?, updated = ? WHERE id = ?').bind('admin', Date.now(), row.id).run();
       } catch {}

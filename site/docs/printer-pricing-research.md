@@ -67,9 +67,9 @@ Printer lifetime, labour rate, power usage, failure reserve and target margin ne
 
 ## Revised customer-price policy (2026-10-06)
 
-The 2026-10-02 recommendation above (SAR 0.50/g + SAR 3/hour, SAR 25 minimum, SAR 15 sanding) is superseded. A fresh benchmark and unit-economics review raised the policy to cover material, electricity, machine wear, handling labour, packaging and a failure reserve while staying in the Saudi budget tier (SAR 0.50–1.00/g) where Forma3D's customers buy. The customer-facing formula is now:
+The 2026-10-02 recommendation above (SAR 0.50/g + SAR 3/hour, SAR 25 minimum, SAR 15 sanding) is superseded. A fresh benchmark and unit-economics review raised the machine and minimum components to cover electricity, machine wear, handling labour, packaging and a failure reserve while staying in the Saudi budget tier (SAR 0.35–1.00/g) where Forma3D's customers buy. The owner set the customer-facing material rate to SAR 0.35/g. The formula is now:
 
-`priceSAR = max(39, (grams * 0.55 + hours * 3.50) * quantityDiscount) + (20 if hand-sanded)`
+`priceSAR = max(39, (grams * 0.35 + hours * 3.50) * quantityDiscount) + (20 if hand-sanded)`
 
 with volume savings of 5% at 2+ prints, 10% at 5+ and 15% at 10+, applied to the production subtotal before the SAR 39 minimum floor so a discounted small batch never prices below the minimum. Local pickup, files fixes, support removal and packaging stay free. The quote remains provisional and visibly labelled until the studio confirms the final total.
 
@@ -89,7 +89,7 @@ Observed benchmark and cost inputs (retrieved 2026-10-06 unless noted):
 | FDM reliability study (2026-03) | 94.2% success over 120 tracked runs; open-studio waste studies 19–35% | https://layercraftlog.com/fdm-printing/how-does-print-failure-rate-compare-between-fdm-and-resin-printers |
 | Saudi labour reference | Minimum SAR 23.08/hour; general worker average SAR 25.60/hour | https://wage.is/saudi-arabia |
 
-Unit economics behind the rates (business assumptions to confirm against owner invoices): landed PLA ≈ SAR 0.10/g including purge; electricity ≈ SAR 0.03/hour at measured average draw; machine wear and maintenance ≈ SAR 0.35/hour (printer ÷ ~6,000 useful hours plus maintenance); handling labour ≈ SAR 35/hour fully loaded with ~20 minutes per typical order; packaging/pickup ≈ SAR 3/order; ~6% failure reserve inside the rates. A typical 100 g / 6 h order now prices at SAR 76 with roughly 63% gross margin; a 20 g / 1 h job hits the SAR 39 minimum instead of the old near-break-even SAR 25. These figures are estimates, not audited profit.
+Unit economics behind the rates (business assumptions to confirm against owner invoices): landed PLA ≈ SAR 0.10/g including purge; electricity ≈ SAR 0.03/hour at measured average draw; machine wear and maintenance ≈ SAR 0.35/hour (printer ÷ ~6,000 useful hours plus maintenance); handling labour ≈ SAR 35/hour fully loaded with ~20 minutes per typical order; packaging/pickup ≈ SAR 3/order; ~6% failure reserve inside the rates. A typical 100 g / 6 h order prices at SAR 56 with roughly 49% gross margin; a 20 g / 1 h job hits the SAR 39 minimum instead of the old near-break-even SAR 25. These figures are estimates, not audited profit; the owner set the material rate and may revise the machine or minimum components.
 
 Catalog base prices were re-anchored to the revised policy and rounded to clean SAR 9 endings: Ripple Vase 79, Orbit Planter 159, Wave Catchall 39, Arch Phone Stand 119, Loop Organizer 129, Ripple Shade 159. Catalog prices remain studio-editable in the admin panel.
 
